@@ -328,15 +328,15 @@ def create_formatted_excel(df_course, course_details):
 
         # --- FILA 16: Cabeceras de la tabla de datos ---
         data_header_row = 16
-        headers = ["N°", "Apellidos y Nombres", "DNI", "Unidad (Cliente)", "Nota", "Fecha Examen", "Hora Conexión", "Observación"]
+        headers = ["N°", "Apellidos y Nombres", "DNI", "Unidad (Cliente)", "Nota", "Fecha Examen", "Hora Conexión"]
         for col_idx, header in enumerate(headers, start=1):
             cell = ws.cell(row=data_header_row, column=col_idx, value=header)
             cell.font = font_bold_10
             cell.alignment = center_align
             cell.border = thin_border
             cell.fill = grey_fill
-
-         # Agregar columna "Observación" que abarca H16:I16
+        
+        # Agregar columna "Observación" que abarca H16:I16
         ws.merge_cells('H16:I16')
         ws['H16'].value = "Observación"
         ws['H16'].font = font_bold_10
@@ -352,47 +352,56 @@ def create_formatted_excel(df_course, course_details):
                 cell.font = font_normal
                 cell.alignment = left_align if col_idx == 2 else center_align
                 cell.border = thin_border
+            
+            # Agregar celdas para la columna "Observación" (H e I) con bordes
+            ws.cell(row=row_idx, column=8).border = thin_border
+            ws.cell(row=row_idx, column=9).border = thin_border
+            # Combinar las celdas H e I para Observación en cada fila de datos
+            ws.merge_cells(f'H{row_idx}:I{row_idx}')
+            ws.cell(row=row_idx, column=8).alignment = center_align
 
         # --- Pie de página: Responsable del Registro ---
         footer_start_row = data_header_row + len(df_course) + 3
-
-        ws.merge_cells(f'A{footer_start_row}:C{footer_start_row}')
-        ws[f'A{footer_start_row}'].value = "Responsable del Registro:"
-        ws[f'A{footer_start_row}'].font = font_bold_10
-
-        ws.merge_cells(f'A{footer_start_row+1}:C{footer_start_row+1}')
-        ws[f'A{footer_start_row+1}'].value = "Apellidos y Nombres: Ciudad Olano, Karina Alejandra"
-        ws[f'A{footer_start_row+1}'].font = font_normal
-        ws[f'A{footer_start_row+1}'].alignment = left_align
-
-        ws.merge_cells(f'A{footer_start_row+2}:B{footer_start_row+2}')
-        ws[f'A{footer_start_row+2}'].value = "Cargo: Coordinadora de Capacitación y Desarrollo"
-        ws[f'A{footer_start_row+2}'].font = font_normal
-        ws[f'A{footer_start_row+2}'].alignment = left_align
-
-        ws.merge_cells(f'D{footer_start_row+1}:E{footer_start_row+1}')
-        ws[f'D{footer_start_row+1}'].value = "Firma:"
-        ws[f'D{footer_start_row+1}'].font = font_bold_10
-        ws[f'D{footer_start_row+1}'].alignment = left_align
-
+        
+        # FILA 1 del pie: Apellidos y Nombres + Firma + Imagen
+        ws.merge_cells(f'A{footer_start_row}:E{footer_start_row}')
+        ws[f'A{footer_start_row}'].value = "Apellidos y Nombres: Ciudad Olano, Karina Alejandra"
+        ws[f'A{footer_start_row}'].font = font_normal
+        ws[f'A{footer_start_row}'].alignment = center_align
+        
+        ws[f'F{footer_start_row}'].value = "Firma:"
+        ws[f'F{footer_start_row}'].font = font_bold_10
+        ws[f'F{footer_start_row}'].alignment = center_align
+        
+        # Imagen de firma en G:I (centrada)
+        ws.merge_cells(f'G{footer_start_row}:I{footer_start_row}')
+        ws[f'G{footer_start_row}'].alignment = center_align
+        
         if os.path.exists(FIRMA_PATH):
             try:
                 img_firma = OpenpyxlImage(FIRMA_PATH)
                 img_firma.width = 100
                 img_firma.height = 50
-                ws.add_image(img_firma, f'F{footer_start_row + 1}')
+                # Ajustar altura de fila para la firma
+                ws.row_dimensions[footer_start_row].height = 50
+                ws.add_image(img_firma, f'G{footer_start_row}')
             except Exception as e:
                 print(f"Advertencia: No se pudo cargar la firma: {e}")
-
-        ws.merge_cells(f'D{footer_start_row+2}:E{footer_start_row+2}')
-        ws[f'D{footer_start_row+2}'].value = "Fecha:"
-        ws[f'D{footer_start_row+2}'].font = font_bold_10
-        ws[f'D{footer_start_row+2}'].alignment = left_align
-
-        ws.merge_cells(f'F{footer_start_row+2}:G{footer_start_row+2}')
-        ws[f'F{footer_start_row+2}'].value = datetime.date.today().strftime('%d/%m/%Y')
-        ws[f'F{footer_start_row+2}'].font = font_normal
-        ws[f'F{footer_start_row+2}'].alignment = left_align
+        
+        # FILA 2 del pie: Cargo + Fecha
+        ws.merge_cells(f'A{footer_start_row+1}:E{footer_start_row+1}')
+        ws[f'A{footer_start_row+1}'].value = "Cargo: Coordinadora de Capacitación y Desarrollo"
+        ws[f'A{footer_start_row+1}'].font = font_normal
+        ws[f'A{footer_start_row+1}'].alignment = center_align
+        
+        ws[f'F{footer_start_row+1}'].value = "Fecha:"
+        ws[f'F{footer_start_row+1}'].font = font_bold_10
+        ws[f'F{footer_start_row+1}'].alignment = center_align
+        
+        ws.merge_cells(f'G{footer_start_row+1}:I{footer_start_row+1}')
+        ws[f'G{footer_start_row+1}'].value = datetime.date.today().strftime('%d/%m/%Y')
+        ws[f'G{footer_start_row+1}'].font = font_normal
+        ws[f'G{footer_start_row+1}'].alignment = center_align
 
         # Guardar el libro de trabajo en el buffer de memoria
         wb.save(output)
