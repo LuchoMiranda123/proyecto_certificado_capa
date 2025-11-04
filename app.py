@@ -3,7 +3,29 @@ import pandas as pd
 import os
 from io import BytesIO
 import zipfile
+import json
 from formato_excel import create_formatted_excel
+
+# --- Función para mapear nombres truncados de Excel a nombres completos ---
+def get_nombre_completo_curso(nombre_truncado, config_cursos):
+    """
+    Mapea un nombre truncado de hoja de Excel (máx 31 caracteres) 
+    al nombre completo del curso en config_cursos.json
+    """
+    # Remover números y guiones bajos del inicio (ej: "1_IPERC..." -> "IPERC...")
+    nombre_limpio = nombre_truncado.lstrip('0123456789_')
+    
+    # Buscar en el JSON por coincidencia parcial
+    for nombre_completo in config_cursos['cursos'].keys():
+        # Si el nombre limpio es el inicio del nombre completo
+        if nombre_completo.startswith(nombre_limpio):
+            return nombre_completo
+        # O si el nombre limpio está contenido en el nombre completo
+        if nombre_limpio in nombre_completo:
+            return nombre_completo
+    
+    # Si no se encuentra, devolver el nombre truncado original
+    return nombre_truncado
 
 # --- Configuración de la Página ---
 st.set_page_config(
@@ -28,6 +50,14 @@ if 'paso_completado' not in st.session_state:
         'paso2_dnis': False,
         'paso3_cursos': False
     }
+if 'config_cursos' not in st.session_state:
+    # Cargar configuración de cursos
+    config_path = os.path.join(os.path.dirname(__file__), 'config_cursos.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            st.session_state.config_cursos = json.load(f)
+    except Exception as e:
+        st.session_state.config_cursos = {'cursos': {}, 'configuracion_default': {}}
 
 # --- BARRA LATERAL CON INFORMACIÓN ---
 with st.sidebar:
@@ -114,14 +144,22 @@ with col1:
             with st.spinner("Cargando archivo..."):
                 try:
                     # Leer Excel indicando que los encabezados están en la fila 4 (índice 3)
+                    # Primero leer para detectar columnas de DNI
                     df = pd.read_excel(personal_file, header=3)
+                    
+                    # Detectar columnas de DNI y convertir a string con ceros a la izquierda
+                    possible_dni_cols = ['DOCUMENTO', 'DNI', 'Documento', 'dni', 'documento', 'DOC']
+                    for col in df.columns:
+                        if col in possible_dni_cols or 'DNI' in str(col).upper() or 'DOCUMENTO' in str(col).upper():
+                            # Convertir a string preservando ceros a la izquierda
+                            df[col] = df[col].apply(lambda x: str(int(x)).zfill(8) if pd.notna(x) and str(x).replace('.','').isdigit() else str(x) if pd.notna(x) else '')
+
+                    # Limpiar filas vacías
+                    df = df.dropna(how="all")
 
                     # Guardar en sesión para reutilizar después
                     st.session_state.personal_df = df
                     st.session_state.paso_completado['paso1_personal'] = True
-
-                    # Limpiar filas vacías
-                    df = df.dropna(how="all")
 
                     # Mostrar mensaje de éxito
                     st.success(f"✅ Archivo cargado correctamente ({len(df)} registros).")
@@ -208,13 +246,17 @@ if dni_input_method == "Pegar DNIs manualmente":
     dni_text = st.text_area(
         "Pegar DNIs (uno por línea):",
         height=150,
-        placeholder="12345678\n87654321\n11223344"
+        placeholder="12345678\n87654321\n01234567"
     )
     if dni_text:
-        # Limpiar y convertir a string, eliminando espacios y puntos
-        dnis_list = [str(int(float(dni.strip().replace('.', '').replace(',', '')))) 
-                     for dni in dni_text.split('\n') 
-                     if dni.strip() and dni.strip().replace('.', '').replace(',', '').isdigit()]
+        # Limpiar y convertir a string, preservando ceros a la izquierda (formato 8 dígitos)
+        dnis_list = []
+        for dni in dni_text.split('\n'):
+            if dni.strip():
+                dni_clean = dni.strip().replace('.', '').replace(',', '').replace(' ', '')
+                if dni_clean.isdigit():
+                    # Rellenar con ceros a la izquierda si es necesario (DNI peruano = 8 dígitos)
+                    dnis_list.append(dni_clean.zfill(8))
 
 else:  # Subir archivo
     dni_file = st.file_uploader(
@@ -240,15 +282,24 @@ else:  # Subir archivo
                     break
             
             if dni_column:
-                # Limpiar DNIs: convertir a string sin decimales
-                dnis_list = [str(int(float(x))) if pd.notna(x) else '' 
-                            for x in dni_df[dni_column].tolist()]
-                dnis_list = [dni for dni in dnis_list if dni]  # Eliminar vacíos
+                # Limpiar DNIs: convertir a string preservando ceros a la izquierda
+                dnis_list = []
+                for x in dni_df[dni_column].tolist():
+                    if pd.notna(x):
+                        dni_str = str(x).replace('.0', '').replace(',', '').strip()
+                        if dni_str.isdigit():
+                            # Rellenar con ceros a la izquierda (DNI peruano = 8 dígitos)
+                            dnis_list.append(dni_str.zfill(8))
             else:
                 st.warning("⚠️ No se encontró columna de DNI. Selecciona manualmente:")
                 dni_column = st.selectbox("Columna con DNIs:", dni_df.columns)
                 if dni_column:
-                    dnis_list = dni_df[dni_column].astype(str).tolist()
+                    dnis_list = []
+                    for x in dni_df[dni_column].tolist():
+                        if pd.notna(x):
+                            dni_str = str(x).replace('.0', '').replace(',', '').strip()
+                            if dni_str.isdigit():
+                                dnis_list.append(dni_str.zfill(8))
         except Exception as e:
             st.error(f"❌ Error al leer archivo de DNIs: {e}")
 
@@ -327,9 +378,13 @@ if procesar_btn:
             processed_data = []
             
             for dni in dnis_list:
-                # Buscar en Personal Asignado
+                # Asegurar formato de DNI con ceros a la izquierda
+                dni_formatted = str(dni).zfill(8) if str(dni).isdigit() else str(dni)
+                
+                # Buscar en Personal Asignado (comparar ambos formatos por si acaso)
                 person = st.session_state.personal_df[
-                    st.session_state.personal_df[dni_col_personal].astype(str) == str(dni)
+                    (st.session_state.personal_df[dni_col_personal].astype(str) == dni_formatted) |
+                    (st.session_state.personal_df[dni_col_personal].astype(str) == str(int(dni_formatted)))
                 ]
                 
                 if not person.empty:
@@ -340,7 +395,7 @@ if procesar_btn:
                     unidad = None
                 
                 processed_data.append({
-                    'DNI': dni,
+                    'DNI': dni_formatted,  # Guardar con formato correcto
                     'Nombre': nombre,
                     'Unidad': unidad
                 })
@@ -425,48 +480,90 @@ if st.session_state.cursos_disponibles:
         
         course_configs = {}
         
+        # Botón para editar configuración de cursos
+        with st.expander("⚙️ Gestionar configuración de cursos"):
+            st.info("💡 Puedes editar el archivo 'config_cursos.json' para configurar los 25 cursos con sus datos específicos")
+            
+            # Mostrar debug de coincidencias
+            cursos_json = list(st.session_state.config_cursos['cursos'].keys())
+            st.caption(f"**Cursos en JSON:** {len(cursos_json)}")
+            st.caption(f"**Cursos seleccionados:** {len(selected_courses)}")
+            
+            # Verificar coincidencias con mapeo
+            st.markdown("**Mapeo de nombres:**")
+            for curso in selected_courses:
+                nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos)
+                if nombre_completo in cursos_json:
+                    st.success(f"✅ '{curso}' → '{nombre_completo}'")
+                else:
+                    st.error(f"❌ '{curso}' → '{nombre_completo}' (no encontrado)")
+                    st.caption(f"Búsqueda: '{curso}'")
+            
+            if st.button("🔄 Recargar configuración desde archivo"):
+                config_path = os.path.join(os.path.dirname(__file__), 'config_cursos.json')
+                try:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        st.session_state.config_cursos = json.load(f)
+                    st.success("✅ Configuración recargada correctamente")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error al recargar configuración: {e}")
+        
         for curso in selected_courses:
-            with st.expander(f"📝 Configurar: {curso}", expanded=False):
+            # Mapear nombre truncado a nombre completo
+            nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos)
+            
+            # Obtener configuración del curso desde el archivo JSON usando el nombre completo
+            curso_config = st.session_state.config_cursos['cursos'].get(nombre_completo, None)
+            
+            # Si no se encuentra, usar la configuración default
+            if curso_config is None:
+                curso_config = st.session_state.config_cursos.get('configuracion_default', {})
+                st.warning(f"⚠️ Curso '{curso}' (mapeado a '{nombre_completo}') no encontrado en config_cursos.json. Usando configuración por defecto.")
+            
+            with st.expander(f"📝 {curso}", expanded=False):
+                if nombre_completo != curso:
+                    st.caption(f"🔗 Nombre completo: **{nombre_completo}**")
+                
+                if st.session_state.config_cursos['cursos'].get(nombre_completo, None) is not None:
+                    st.caption("✅ Configuración cargada desde config_cursos.json")
+                else:
+                    st.caption("⚠️ Usando configuración por defecto - Agrega este curso al config_cursos.json")
+                
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    tema = st.text_input(
-                        "Tema/Motivo:",
-                        key=f"tema_{curso}",
-                        value="Capacitación en seguridad"
-                    )
-                    capacitador = st.text_input(
-                        "Capacitador/Entrenador:",
-                        key=f"capacitador_{curso}",
-                        value="Jose Alvines"
-                    )
-                    duracion = st.text_input(
-                        "Duración (HH:MM:SS):",
-                        key=f"duracion_{curso}",
-                        value="00:30:00"
-                    )
+                    st.markdown(f"**Tema/Motivo:**")
+                    st.info(curso_config.get('tema_motivo', 'Capacitación en seguridad'))
+                    
+                    st.markdown(f"**Capacitador/Entrenador:**")
+                    st.info(curso_config.get('capacitador', 'Jose Alvines'))
+                    
+                    st.markdown(f"**Duración:**")
+                    st.info(curso_config.get('duracion', '00:30:00'))
+                    
+                    st.markdown(f"**Firma:**")
+                    st.info(curso_config.get('firma', 'firma_capacitador.png'))
                 
                 with col2:
-                    contenido = st.text_area(
-                        "Contenido/Sub Temas:",
-                        key=f"contenido_{curso}",
-                        height=100,
-                        value="* Tema 1\n* Tema 2\n* Tema 3"
-                    )
-                    grabacion = st.text_input(
-                        "Grabación/Material (URL):",
-                        key=f"grabacion_{curso}",
-                        value="https://youtu.be/ejemplo"
-                    )
+                    st.markdown(f"**Contenido/Sub Temas:**")
+                    st.info(curso_config.get('contenido_subtemas', '* Tema 1\n* Tema 2\n* Tema 3'))
+                    
+                    st.markdown(f"**Grabación/Material:**")
+                    st.info(curso_config.get('grabacion', 'https://youtu.be/ejemplo'))
                 
-                course_configs[curso] = {
-                    'Nombre Curso': curso,
-                    'Tema/Motivo': tema,
-                    'Contenido/ Sub Temas': contenido,
-                    'Capacitador/Entrenador': capacitador,
-                    'Duracion': duracion,
-                    'Grabacion/ Material': grabacion
-                }
+                st.caption("💡 Para editar esta información, modifica el archivo config_cursos.json")
+            
+            # Construir configuración directamente desde el JSON usando nombre completo
+            course_configs[curso] = {
+                'Nombre Curso': nombre_completo,  # Usar nombre completo en el Excel generado
+                'Tema/Motivo': curso_config.get('tema_motivo', 'Capacitación en seguridad'),
+                'Contenido/ Sub Temas': curso_config.get('contenido_subtemas', '* Tema 1\n* Tema 2\n* Tema 3'),
+                'Capacitador/Entrenador': curso_config.get('capacitador', 'Jose Alvines'),
+                'Duracion': curso_config.get('duracion', '00:30:00'),
+                'Grabacion/ Material': curso_config.get('grabacion', 'https://youtu.be/ejemplo'),
+                'Firma': curso_config.get('firma', 'firma_capacitador.png')
+            }
         
         st.markdown("---")
         
@@ -547,8 +644,12 @@ if st.session_state.cursos_disponibles:
                                             break
                                     
                                     if dni_col_maestro:
+                                        # Buscar por DNI (intentar con y sin ceros a la izquierda)
+                                        dni_sin_ceros = str(int(dni)) if dni.isdigit() else dni
                                         nota_row = maestro_curso[
-                                            maestro_curso[dni_col_maestro].astype(str) == dni
+                                            (maestro_curso[dni_col_maestro].astype(str) == dni) |
+                                            (maestro_curso[dni_col_maestro].astype(str) == dni_sin_ceros) |
+                                            (maestro_curso[dni_col_maestro].astype(str).str.zfill(8) == dni)
                                         ]
                                         if not nota_row.empty:
                                             nota_info = nota_row.iloc[0]
@@ -565,13 +666,16 @@ if st.session_state.cursos_disponibles:
                             
                             df_curso = pd.DataFrame(curso_data)
                             
+                            # Obtener nombre completo del curso
+                            nombre_completo_archivo = course_configs[curso]['Nombre Curso']
+                            
                             # Generar Excel
                             excel_data = create_formatted_excel(df_curso, course_configs[curso])
                             
                             if excel_data:
-                                # Nombre del archivo: NombreCurso - Unidad
+                                # Nombre del archivo: NombreCurso - Unidad (usando nombre completo)
                                 unidad = df_curso['Unidad (Cliente)'].iloc[0] if not df_curso.empty else 'Sin_Unidad'
-                                file_name = f"{curso} - {unidad}.xlsx"
+                                file_name = f"{nombre_completo_archivo} - {unidad}.xlsx"
                                 
                                 zip_file.writestr(file_name, excel_data)
                     

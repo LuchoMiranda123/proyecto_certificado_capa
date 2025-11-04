@@ -8,7 +8,29 @@ import os
 # --- Rutas de Archivos Estáticos (Logo, Firma) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "plantillas", "logo_liderman.png")
-FIRMA_PATH = os.path.join(BASE_DIR, "plantillas", "firma_capacitador.png")
+FIRMAS_DIR = os.path.join(BASE_DIR, "plantillas", "firmas")
+
+def get_firma_path(nombre_archivo):
+    """
+    Obtiene la ruta completa de un archivo de firma.
+    Si no existe, busca la firma por defecto.
+    """
+    # Intentar con el nombre específico
+    firma_path = os.path.join(FIRMAS_DIR, nombre_archivo)
+    if os.path.exists(firma_path):
+        return firma_path
+    
+    # Si no existe, buscar en el directorio de plantillas
+    firma_path = os.path.join(BASE_DIR, "plantillas", nombre_archivo)
+    if os.path.exists(firma_path):
+        return firma_path
+    
+    # Firma por defecto
+    default_path = os.path.join(BASE_DIR, "plantillas", "firma_capacitador.png")
+    if os.path.exists(default_path):
+        return default_path
+    
+    return None
 
 def apply_border_to_range(ws, start_cell, end_cell, border):
     """
@@ -20,6 +42,74 @@ def apply_border_to_range(ws, start_cell, end_cell, border):
     for row in range(min_row, max_row + 1):
         for col in range(min_col, max_col + 1):
             ws.cell(row=row, column=col).border = border
+
+def add_centered_image(ws, img_path, cell_address, img_width, img_height):
+    """
+    Agrega una imagen centrada en una celda.
+    Usa un pequeño margen interno para simular centrado visual.
+    """
+    from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
+    
+    try:
+        img = OpenpyxlImage(img_path)
+        img.width = img_width
+        img.height = img_height
+        
+        # Obtener coordenadas de la celda
+        col_letter, row_num = coordinate_from_string(cell_address)
+        col_idx = column_index_from_string(col_letter)
+        
+        # Obtener dimensiones de la celda
+        col_width = ws.column_dimensions[col_letter].width or 10
+        cell_width_px = col_width * 7  # Aproximado: 7 píxeles por unidad
+        
+        row_height = ws.row_dimensions[row_num].height or 15
+        cell_height_px = row_height * 1.33  # Convertir puntos a píxeles
+        
+        # Calcular offset para centrar (en píxeles)
+        offset_x_px = max(0, (cell_width_px - img_width) / 2)
+        offset_y_px = max(0, (cell_height_px - img_height) / 2)
+        
+        # Convertir píxeles a EMU (English Metric Units) - 1 píxel = 9525 EMU
+        from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
+        from openpyxl.drawing.xdr import XDRPositiveSize2D
+        from openpyxl.utils.units import pixels_to_EMU
+        
+        # Crear marcadores de inicio y fin
+        p2e = pixels_to_EMU
+        
+        _from = AnchorMarker(
+            col=col_idx - 1,
+            row=row_num - 1,
+            colOff=p2e(offset_x_px),
+            rowOff=p2e(offset_y_px)
+        )
+        
+        # Calcular posición final (inicio + tamaño de imagen)
+        to = AnchorMarker(
+            col=col_idx - 1,
+            row=row_num - 1,
+            colOff=p2e(offset_x_px + img_width),
+            rowOff=p2e(offset_y_px + img_height)
+        )
+        
+        # Crear anchor de dos celdas
+        img.anchor = TwoCellAnchor(editAs='oneCell', _from=_from, to=to)
+        
+        ws.add_image(img)
+        return True
+    except Exception as e:
+        # Si falla el centrado, intentar método simple
+        print(f"Advertencia: Centrado falló, usando posición simple: {e}")
+        try:
+            img = OpenpyxlImage(img_path)
+            img.width = img_width
+            img.height = img_height
+            ws.add_image(img, cell_address)
+            return True
+        except Exception as e2:
+            print(f"Error: No se pudo agregar imagen: {e2}")
+            return False
 
 def create_formatted_excel(df_course, course_details):
     """
@@ -42,6 +132,7 @@ def create_formatted_excel(df_course, course_details):
         left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)
         top_left_align = Alignment(horizontal='left', vertical='top', wrap_text=True)
         top_center_align = Alignment(horizontal='center', vertical='top', wrap_text=True)
+        center_left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)  # Centrado vertical, izquierda horizontal
 
         thin_border = Border(left=Side(style='thin'), 
                              right=Side(style='thin'), 
@@ -244,22 +335,34 @@ def create_formatted_excel(df_course, course_details):
         apply_border_to_range(ws, 'H11', 'I11', thin_border)
 
         # --- FILA 12: Contenido ---
-        ws.row_dimensions[12].height = 285
+        # Calcular altura automática basada en el contenido
+        contenido = course_details['Contenido/ Sub Temas']
+        # Ancho total de las columnas C a I en caracteres (aprox)
+        ancho_disponible = 20 + 57 + 19 + 19 + 19 + 12 + 12  # suma de anchos C-I
+        # Calcular número de líneas necesarias
+        num_lineas = contenido.count('\n') + 1  # contar saltos de línea
+        # Estimar líneas adicionales por wrap de texto
+        chars_por_linea = ancho_disponible * 1.2  # ajuste por tamaño de fuente
+        lineas_por_wrap = len(contenido) / chars_por_linea
+        total_lineas = max(num_lineas, lineas_por_wrap)
+        # Altura de fila: ~15 puntos por línea + padding
+        altura_calculada = max(50, min(400, total_lineas * 15 + 10))  # mínimo 50, máximo 400
+        ws.row_dimensions[12].height = altura_calculada
         
         ws.merge_cells('A12:B12')
         ws['A12'].value = "Contenido/ Sub Temas:"
         ws['A12'].font = font_bold_10
-        ws['A12'].alignment = top_center_align
+        ws['A12'].alignment = center_align  # Centrado completamente para el encabezado
         apply_border_to_range(ws, 'A12', 'B12', thin_border)
         
         ws.merge_cells('C12:I12')
-        ws['C12'].value = course_details['Contenido/ Sub Temas']
+        ws['C12'].value = contenido
         ws['C12'].font = font_normal
-        ws['C12'].alignment = top_left_align
+        ws['C12'].alignment = center_left_align  # Centrado vertical, alineado a la izquierda
         apply_border_to_range(ws, 'C12', 'I12', thin_border)
 
         # --- FILA 13: Capacitador/Firma ---
-        ws.row_dimensions[13].height = 50
+        ws.row_dimensions[13].height = 60  # Aumentar altura para mejor visualización
         
         ws.merge_cells('A13:B13')
         ws['A13'].value = "Capacitador/Entrenador:"
@@ -278,17 +381,13 @@ def create_formatted_excel(df_course, course_details):
         ws['E13'].alignment = center_align
         ws['E13'].border = thin_border
         
-        # Firma (Imagen) - Ajustada al tamaño de la celda
+        # Firma (Imagen) - Aumentar tamaño para mejor visibilidad
         ws['F13'].border = thin_border
-        if os.path.exists(FIRMA_PATH):
-            try:
-                img_firma_cap = OpenpyxlImage(FIRMA_PATH)
-                img_firma_cap.width = 120  # Píxeles
-                img_firma_cap.height = 45   # Píxeles
-                ws['F13'].alignment = Alignment(horizontal='center', vertical='center')
-                ws.add_image(img_firma_cap, 'F13')
-            except Exception as e:
-                print(f"Advertencia: No se pudo cargar la firma del capacitador: {e}")
+        ws['F13'].alignment = Alignment(horizontal='center', vertical='center')
+        firma_capacitador = get_firma_path(course_details.get('Firma', 'firma_capacitador.png'))
+        if firma_capacitador:
+            # Imagen más grande: 130x50 píxeles
+            add_centered_image(ws, firma_capacitador, 'F13', 130, 50)
         
         ws['G13'].value = "Duración:"
         ws['G13'].font = font_bold_10
@@ -377,16 +476,13 @@ def create_formatted_excel(df_course, course_details):
         ws.merge_cells(f'G{footer_start_row}:I{footer_start_row}')
         ws[f'G{footer_start_row}'].alignment = center_align
         
-        if os.path.exists(FIRMA_PATH):
-            try:
-                img_firma = OpenpyxlImage(FIRMA_PATH)
-                img_firma.width = 100
-                img_firma.height = 50
-                # Ajustar altura de fila para la firma
-                ws.row_dimensions[footer_start_row].height = 50
-                ws.add_image(img_firma, f'G{footer_start_row}')
-            except Exception as e:
-                print(f"Advertencia: No se pudo cargar la firma: {e}")
+        # Ajustar altura de fila para la firma (más grande para mejor visibilidad)
+        ws.row_dimensions[footer_start_row].height = 60
+        
+        firma_responsable = get_firma_path('firma_karina.png')  # Firma del responsable del registro
+        if firma_responsable:
+            # Imagen más grande: 120x50 píxeles
+            add_centered_image(ws, firma_responsable, f'G{footer_start_row}', 120, 50)
         
         # FILA 2 del pie: Cargo + Fecha
         ws.merge_cells(f'A{footer_start_row+1}:E{footer_start_row+1}')
@@ -402,6 +498,31 @@ def create_formatted_excel(df_course, course_details):
         ws[f'G{footer_start_row+1}'].value = datetime.date.today().strftime('%d/%m/%Y')
         ws[f'G{footer_start_row+1}'].font = font_normal
         ws[f'G{footer_start_row+1}'].alignment = center_align
+
+        # --- CONFIGURACIÓN DE PÁGINA PARA IMPRESIÓN/PDF ---
+        # Configurar para que todo quepa en 1 página
+        ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT  # Orientación vertical
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4  # Tamaño A4
+        ws.page_setup.fitToPage = True  # Ajustar a la página
+        ws.page_setup.fitToHeight = 1  # Ajustar a 1 página de alto
+        ws.page_setup.fitToWidth = 1   # Ajustar a 1 página de ancho
+        
+        # Configurar márgenes (en pulgadas)
+        ws.page_margins.left = 0.25
+        ws.page_margins.right = 0.25
+        ws.page_margins.top = 0.25
+        ws.page_margins.bottom = 0.25
+        ws.page_margins.header = 0.1
+        ws.page_margins.footer = 0.1
+        
+        # Configurar área de impresión (desde A1 hasta la última celda con datos)
+        last_row = footer_start_row + 1
+        ws.print_area = f'A1:I{last_row}'
+        
+        # Centrar en la página al imprimir
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.print_options.horizontalCentered = True
+        ws.print_options.verticalCentered = True
 
         # Guardar el libro de trabajo en el buffer de memoria
         wb.save(output)
