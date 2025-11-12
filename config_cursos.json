@@ -2,192 +2,246 @@
   "cursos": {
     "IPERC, mapa de riesgos y procedimientos PETS": {
       "nombre": "IPERC, mapa de riesgos y procedimientos PETS",
-      "tema_motivo": "Capacitación en seguridad",
+      "tema_motivo": "IPERC, mapa de riesgos y procedimientos PETS",
       "contenido_subtemas": "• ¿Qué es IPERC y cuál es su importancia?\n• Clasificación de los peligros en el lugar de trabajo\n• Cómo identificar, evaluar y controlar los riesgos\n• El Mapa de riesgos y su utilidad\n• Ejemplos prácticos de la aplicación del IPERC\n• Recomendaciones claves para fortalecer la seguridad\n• Equipos de Protección Personal\n• Estándares de seguridad\n• PETS o procedimiento escrito de trabajo seguro",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Juan Terrones / Indira Merino",
+      "duracion": "00:21:50",
+      "grabacion": "https://youtu.be/xgC8OLmPP58",
+      "firma": "firma_Juan_Terrones.png|firma_Indira_Merino.png"
     },
     "Seguridad y prevención en el puesto de trabajo": {
       "nombre": "Seguridad y prevención en el puesto de trabajo",
-      "tema_motivo": "Capacitación en seguridad",
+      "tema_motivo": "Seguridad y prevención en el puesto de trabajo",
       "contenido_subtemas": "• Medidas de prevención y control de riesgos\n• ¿Qué es IPERC?\n• ¿Qué es un Mapa de Riesgo?\n• Definición de peligro, riesgo y riesgo residual\n• Tipos de Peligros\n• Clasificación de los peligros y riesgos\n• ¿Qué es una Matriz de riesgo?\n• Tipos de IPERC\n• Conclusiones y recomendaciones",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Juan Terrones",
+      "duracion": "00:14:55",
+      "grabacion": "https://youtu.be/v6JRcU_c3ZI?si=GZglDvR5f6ZNUGRo",
+      "firma": "firma_Juan_Terrones.png"
     },
     "Salud ocupacional y estilo de vida saludable": {
       "nombre": "Salud ocupacional y estilo de vida saludable",
-      "tema_motivo": "Capacitación en salud ocupacional",
+      "tema_motivo": "Salud ocupacional y estilo de vida saludable",
       "contenido_subtemas": "• ¿Qué son los estilos y hábitos de vida saludable?\n• Beneficios de llevar hábitos saludables\n• Consecuencias de no llevar una vida saludable\n• Definición embarazo, lactancia materna\n• Vigilancia médica de gestantes y lactantes\n• Factores psicológicos: manejo de emociones, tipos de comunicación\n• Desarrollo de habilidades de autorregulación, redes de apoyo\n• Prevención de adicciones y drogas",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Yesenia Armacanqui / Brenda Bendezu",
+      "duracion": "00:26:45",
+      "grabacion": "https://youtu.be/OiLPlULv_ag",
+      "firma": "firma_Yesenia_Armacanqui.png|firma_Brenda_Bendezu.png"
     },
     "Respuesta ante emergencias, contingencias y desastres naturales": {
       "nombre": "Respuesta ante emergencias, contingencias y desastres naturales",
-      "tema_motivo": "Capacitación en respuesta a emergencias",
+      "tema_motivo": "Respuesta ante emergencias, contingencias y desastres naturales",
       "contenido_subtemas": "• Definición: emergencia, área específica, incidente peligroso\n• Actuación del Liderman en una emergencia\n• Plan de respuesta a emergencias, organigrama y protocolos\n• Niveles de respuesta en una emergencia\n• Brigadas de emergencia: identificación, alcance, estructura\n• Procedimiento de comunicación en caso de emergencias\n• ¿Qué hacer antes, durante y después de una emergencia?\n• Simulacros y manejo de una evacuación\n• ¿Qué hacer antes, durante y después de un sismo?",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Jose Alvines / Segundo Maldonado",
+      "duracion": "00:49:24",
+      "grabacion": "https://youtu.be/TlLKKjbLhdw",
+      "firma": "firma_Jose_Alvines.png|firma_Segundo_Maldonado.png"
     },
     "Primeros auxilios y prevención contra incendios": {
       "nombre": "Primeros auxilios y prevención contra incendios",
-      "tema_motivo": "Capacitación en primeros auxilios",
-      "contenido_subtemas": "• Primeros Auxilios: definición, objetivo\n• Protocolo de actuación PAS: proteger, alertar y socorrer\n• Reanimación Cardio Pulmonar (RCP): procedimiento y postura\n• Obstrucción de vías aéreas por cuerpos extraños (OVACE)\n• Quemaduras: definición, identificación y atención\n• Extintores: definición, clasificación y partes\n• Clases de extintores y tipos de fuego\n• Medidas de prevención contra incendios",
+      "tema_motivo": "Primeros auxilios y prevención contra incendios",
+      "contenido_subtemas": "• Primeros Auxilios: Definición y objetivo\n• Protocolo de actuación PAS: Proteger, Alertar y Socorrer\n• Reanimación Cardio Pulmonar (RCP): procedimiento y errores frecuentes\n• Obstrucción de vías aéreas (OVACE): procedimiento y errores frecuentes\n• Quemaduras: identificación y atención\n• Fuego: definición, elementos y clasificación\n• Extintores: clasificación, partes y uso por tipo de fuego\n• Medidas de prevención contra incendios",
       "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "duracion": "00:32:58",
+      "grabacion": "https://youtu.be/XVKy1wo631k",
+      "firma": "firma_Jose_Alvines.png"
     },
     "Hostigamiento sexual laboral": {
       "nombre": "Hostigamiento sexual laboral",
-      "tema_motivo": "Capacitación en prevención del hostigamiento",
-      "contenido_subtemas": "• Definición de hostigamiento sexual laboral\n• ¿Cómo se manifiesta el hostigamiento sexual?\n• Forma de violencia con contenido sexual y sexista\n• Casos prácticos ante el hostigamiento sexual laboral\n• Procedimientos ante casos de hostigamiento sexual laboral\n• ¿Qué consecuencias trae consigo el hostigamiento sexual?\n• Consecuencia penal ante el hostigamiento sexual\n• Política Liderman\n• Canal y formato de denuncia",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "tema_motivo": "Hostigamiento sexual laboral",
+      "contenido_subtemas": "• Definición y manifestaciones del hostigamiento sexual laboral\n• Formas de violencia: contenido sexual y sexista\n• Casos prácticos\n• Procedimientos ante casos de hostigamiento sexual\n• ¿Cómo debo comportarme siendo Liderman?\n• Consecuencias laborales y penales\n• Política Liderman, pruebas y canal de denuncia",
+      "capacitador": "Renzo Asian",
+      "duracion": "00:37:27",
+      "grabacion": "https://youtu.be/-o6sAQliTeA",
+      "firma": "firma_Renzo_Asian.png"
     },
     "Defensa personal y uso de la fuerza": {
       "nombre": "Defensa personal y uso de la fuerza",
-      "tema_motivo": "Capacitación en defensa personal",
+      "tema_motivo": "Defensa personal y uso de la fuerza",
       "contenido_subtemas": "• Mantener la calma, ante todo\n• Defensa personal verbal\n• Defensa arma blanca\n• Actuación ante arma de fuego\n• Último recurso es la acción\n• Niveles del uso de la fuerza",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:22:33",
+      "grabacion": "https://youtu.be/BczFxDGLAyg",
+      "firma": "firma_Fredy_Gutierrez.png"
     },
     "Eventos indeseables, perturbadores y lugares hostiles": {
       "nombre": "Eventos indeseables, perturbadores y lugares hostiles",
-      "tema_motivo": "Capacitación en gestión de riesgos",
+      "tema_motivo": "Eventos indeseables, perturbadores y lugares hostiles",
       "contenido_subtemas": "• Definición e implicancias de lugares hostiles\n• Riesgos en lugares hostiles: definición, identificación\n• Planeamiento de la gestión de riesgos\n• ¿Por qué hay lugares hostiles para las empresas?\n• Gestión para evitar lugares hostiles\n• Caso de lugares hostiles en minería y huelgas",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Daniel Perez",
+      "duracion": "00:18:13",
+      "grabacion": "https://youtu.be/HiHFibloHLM",
+      "firma": "firma_Daniel_Perez.png"
     },
     "Fundamentos del Sistema Integrado de Gestión": {
       "nombre": "Fundamentos del Sistema Integrado de Gestión",
       "tema_motivo": "Capacitación en sistema de gestión",
       "contenido_subtemas": "• Definición del Sistema de Gestión Integrado\n• Certificaciones internacionales\n• Política del Sistema de Gestión Integrado\n• Estructura del Sistema de Gestión\n• Gestión de la información documentada\n• Control documentario\n• Política antisoborno, del delator y de Derechos Humanos\n• Objetivos del SGI\n• Matriz de riesgos y oportunidades\n• Uso del fotocheck",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Ruth Ponce",
+      "duracion": "00:24:39",
+      "grabacion": "https://youtu.be/Cx4Wd12p3f0",
+      "firma": "firma_Ruth_Ponce.png"
     },
     "Prevención de riesgos de soborno": {
       "nombre": "Prevención de riesgos de soborno",
-      "tema_motivo": "Capacitación en prevención de soborno",
-      "contenido_subtemas": "• Definiciones: soborno, conflicto de intereses, debida diligencia\n• ¿Qué es una debida diligencia?\n• Política Antisoborno Grupo Liderman\n• Procedimiento de Prevención de Recepción de Regalos\n• Procedimiento de Denuncias por Actos o Sospechas de Soborno\n• Ejemplos de posibles actos de corrupción\n• Sistema de gestión antisoborno\n• Consecuencias de cometer sobornos\n• Canal de denuncia y modelo de prevención Liderman",
+      "tema_motivo": "Prevención de riesgos de soborno",
+      "contenido_subtemas": "• Definiciones: Soborno, conflicto de intereses, debida diligencia\n• Política Antisoborno y Modelo de prevención Liderman\n• Sistema de gestión antisoborno\n• Procedimientos: Prevención de Regalos y Denuncias\n• Ejemplos de actos de corrupción\n• Obligación de denunciar y consecuencias del soborno\n• Canal de denuncia",
       "capacitador": "Jose Alvines",
       "duracion": "01:00:00",
       "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "firma": "firma_Jose_Alvines.png"
     },
     "Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial": {
       "nombre": "Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial",
-      "tema_motivo": "Capacitación en gestión ambiental",
+      "tema_motivo": "Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial",
       "contenido_subtemas": "• Aspectos, impactos ambientales y clasificación\n• Matriz de aspectos e impactos ambientales\n• Marco legal respecto a la gestión de residuos sólidos\n• Procedimiento y ciclo de residuos sólidos\n• Clasificación de residuos sólidos\n• Circuito de residuos\n• Las 3R\n• Clasificación de los contenedores de residuos\n• Responsabilidad social empresarial",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Gabriela Garcia",
+      "duracion": "00:30:04 ",
+      "grabacion": "https://www.youtube.com/embed/BnsxMLlFA5U",
+      "firma": "firma_Gabriela_Garcia.png"
     },
     "Protocolos y procedimientos de agente parking o valet parking": {
       "nombre": "Protocolos y procedimientos de agente parking o valet parking",
-      "tema_motivo": "Capacitación en procedimientos valet parking",
-      "contenido_subtemas": "• Protocolo de atención al cliente\n• Procedimiento de recepción de vehículos\n• Procedimiento de entrega de vehículos\n• Medidas de seguridad\n• Política Antisoborno\n• Ejemplos de posibles actos de corrupción\n• Canal de denuncia\n• Modelo de prevención Liderman\n• Obligación de prevenir y denunciar",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "tema_motivo": "Protocolos y procedimientos de agente parking o valet parking",
+      "contenido_subtemas": "• Definiciones: Soborno, conflicto de intereses, debida diligencia\n• Política Antisoborno y Modelo de prevención Liderman\n• Sistema de gestión antisoborno y cómo evitar la corrupción\n• Procedimientos: Prevención de Regalos y Denuncias\n• Ejemplos de actos de corrupción\n• Obligación de denunciar y consecuencias del soborno\n• Canal de denuncia",
+      "capacitador": "Daniel Perez",
+      "duracion": "00:41:55",
+      "grabacion": "https://www.youtube.com/embed/BnsxMLlFA5U",
+      "firma": "firma_Daniel_Perez.png"
     },
     "IPERC, mapa de riesgos y procedimientos PETS (Parte 02)": {
       "nombre": "IPERC, mapa de riesgos y procedimientos PETS (Parte 02)",
-      "tema_motivo": "Capacitación en seguridad",
+      "tema_motivo": "IPERC, mapa de riesgos y procedimientos PETS (Parte 02)",
       "contenido_subtemas": "• IPERC (Identificación de Peligros, Evaluación de Riesgos y Controles)\n• Mapa de Riesgos\n• Equipo de Protección Personal (EPP)\n• PET: Apertura y cierre de portones\n• PET: Monitoreo de cámaras de videovigilancia\n• PET: Rondas perimétricas\n• PET: Control de acceso peatonal\n• PET: Control de acceso vehicular\n• PET: Manejo de vehículo\n• PET: Uso de armamento",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Luis Sanchez",
+      "duracion": "00:28:53",
+      "grabacion": "https://www.youtube.com/embed/M2fkVqWnl-k",
+      "firma": "firma_Luis_Sanchez.png"
     },
     "Derechos humanos, principios voluntarios y constitución": {
       "nombre": "Derechos humanos, principios voluntarios y constitución",
-      "tema_motivo": "Capacitación en derechos humanos",
+      "tema_motivo": "Derechos humanos, principios voluntarios y constitución",
       "contenido_subtemas": "• Definición y características de los Derechos Humanos\n• Declaración de los Derechos Humanos\n• Definición y características de la Constitución Política del Perú\n• Derecho a la vida e integridad moral: no uso de la fuerza\n• Derecho a la igualdad ante la ley: no discriminación",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:22:04",
+      "grabacion": "https://www.youtube.com/embed/ztzq8G1YLYY",
+      "firma": "firma_Fredy_Gutierrez.png"
     },
     "Prevención de delitos de comercio internacional": {
       "nombre": "Prevención de delitos de comercio internacional",
-      "tema_motivo": "Capacitación en prevención de delitos",
+      "tema_motivo": "Prevención de delitos de comercio internacional ",
       "contenido_subtemas": "• Norma BASC en la prevención de delitos de comercio internacional\n• Actividad ilícita en el comercio internacional\n• ¿Cómo informar una actividad ilícita?\n• Criterios e identificación de riesgo\n• Sellos de los contenedores\n• Control de acceso\n• Seguridad física en la instalación\n• Detección y modalidad del narcotráfico, contrabando, terrorismo\n• Corrupción y lavado de activos",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:31:40",
+      "grabacion": "https://www.youtube.com/embed/QOWqUgLwi-Q",
+      "firma": "firma_Fredy_Gutierrez.png"
     },
     "Integridad y ética en la seguridad privada": {
       "nombre": "Integridad y ética en la seguridad privada",
-      "tema_motivo": "Capacitación en ética profesional",
+      "tema_motivo": "Integridad y ética en la seguridad privada ",
       "contenido_subtemas": "• Ética profesional\n• Valores fundamentales\n• Subordinación con criterio\n• Cumplimiento de la ley\n• Confidencialidad y privacidad\n• Política de tolerancia cero\n• Prohibición de sobornos y regalos\n• Responsabilidad social y ambiental",
       "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "duracion": "00:16:53",
+      "grabacion": "https://www.youtube.com/embed/fpYH6Z3zXiQ",
+      "firma": "firma_Jose_Alvines.png"
     },
     "Prevención de delitos relacionados a ciberdelincuencia": {
       "nombre": "Prevención de delitos relacionados a ciberdelincuencia",
-      "tema_motivo": "Capacitación en ciberseguridad",
+      "tema_motivo": "Prevención de delitos relacionados a ciberdelincuencia ",
       "contenido_subtemas": "• Ciberdelincuencia\n• Conceptos básicos\n• Prevención en materia de la ciberseguridad\n• Modalidades más utilizadas\n• Detección de delitos\n• Recomendaciones y mecanismos de prevención ante la ciberdelincuencia",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:21:30",
+      "grabacion": "https://www.youtube.com/embed/QOWqUgLwi-Q",
+      "firma": "firma_Fredy_Gutierrez.png"
     },
     "Armas: conocimiento y manipulación": {
       "nombre": "Armas: conocimiento y manipulación",
-      "tema_motivo": "Capacitación en armamento",
+      "tema_motivo": "Armas: Conocimiento y Manipulación",
       "contenido_subtemas": "• Ley N.º 28879 – Ley de Seguridad Privada\n• Ley N.º 30299 – Ley de armas, municiones y explosivos\n• Decreto Supremo 010-2017-IN\n• Tipos y características de armas autorizadas\n• Revólver calibre .38, Pistola 9 mm, Escopeta calibre 12\n• Partes de una munición: casquillo, ojiva, pólvora, fulminante\n• Normas generales de manipulación\n• Uso correcto del arma en servicio\n• Prohibiciones y verificación del estado del arma\n• Posiciones del tirador",
       "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "duracion": "00:38:08",
+      "grabacion": "https://youtu.be/7VcCLo9dKKo?si=rBaqbf_ErJCRyvmQ",
+      "firma": "firma_Jose_Alvines.png"
     },
     "Normas y procedimientos de seguridad": {
       "nombre": "Normas y procedimientos de seguridad",
-      "tema_motivo": "Capacitación en procedimientos de seguridad",
+      "tema_motivo": "Normas y procedimientos de Seguridad",
       "contenido_subtemas": "• Conceptos básicos de seguridad\n• Tipos de procedimientos de seguridad\n• Control de acceso\n• Rondas y patrullajes\n• Equipos para rondas y patrullajes",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "capacitador": "Daniel Perez",
+      "duracion": "00:37:58",
+      "grabacion": "https://youtu.be/MQl7PR00rRk?si=C_SyisL98lWS0cFs",
+      "firma": "firma_Daniel_Perez.png"
     },
     "Legislación y seguridad privada": {
       "nombre": "Legislación y seguridad privada",
-      "tema_motivo": "Capacitación en legislación",
-      "contenido_subtemas": "• Marco legal de la seguridad privada\n• Ley de Seguridad Privada\n• Derechos y obligaciones del personal de seguridad\n• Normativa vigente\n• Responsabilidades legales\n• Ciberdelincuencia y prevención\n• Modalidades más utilizadas\n• Recomendaciones de prevención",
-      "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
-      "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "tema_motivo": "Legislación y Seguridad privada",
+      "contenido_subtemas": "• Introducción a la Legislación de Seguridad Privada\n• Definición y Alcance de la Seguridad Privada\n• Funciones que NO Corresponden a la Seguridad Privada\n• La Función Principal: La Prevención\n• Responsabilidad Penal y el Delito\n• Tipos de Delitos Relevantes (Homicidio, Lesiones, Robo, Hurto, Falsedad, Complicidad)",
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:28:37",
+      "grabacion": "https://youtu.be/WFTQrPoxBWg?si=ULC0ujsq9x2DbPzi",
+      "firma": "firma_Fredy_Gutierrez.png"
     },
     "Seguridad de instalaciones": {
       "nombre": "Seguridad de instalaciones",
-      "tema_motivo": "Capacitación en seguridad de instalaciones",
+      "tema_motivo": "Seguridad de instalaciones",
       "contenido_subtemas": "• Introducción a la seguridad de instalaciones\n• Fundamentos de la seguridad física\n• Medios técnicos: seguridad pasiva vs. activa\n• Tipos de barreras y sensores\n• Sistemas de alarma y redundancia\n• Rondas y patrullas de vigilancia\n• El plan de seguridad para instalaciones\n• Componentes del plan de seguridad física\n• Componentes del plan de seguridad personal\n• Componentes del plan de seguridad de documentos e información",
       "capacitador": "Jose Alvines",
-      "duracion": "01:00:00",
+      "duracion": "00:10:52",
+      "grabacion": "https://youtu.be/5-wy41J0juk?si=vPW7JIIcpC9cjDHo",
+      "firma": "firma_Jose_Alvines.png"
+    },
+    "Fundamentos de SGI - 2025": {
+      "nombre": "Fundamentos de SGI - 2025",
+      "tema_motivo": "Fundamentos del Sistema Integrado de Gestión",
+      "contenido_subtemas": "• Definición del Sistema de Gestión Integrado\n• Certificaciones internacionales\n• Política del Sistema de Gestión Integrado\n• Estructura del Sistema de Gestión\n• Gestión de la información documentada\n• Control documentario\n• Política antisoborno, del delator y de Derechos Humanos\n• Objetivos del SGI\n• Matriz de riesgos y oportunidades\n• Uso del fotocheck",
+      "capacitador": "Ruth Ponce",
+      "duracion": "00:24:39",
+      "grabacion": "https://youtu.be/Cx4Wd12p3f0",
+      "firma": "firma_Ruth_Ponce.png"
+    },
+    "Ley de estacionamientos 2025": {
+      "nombre": "Ley de estacionamientos 2025",
+      "tema_motivo": "Capacitación en normativa de estacionamientos",
+      "contenido_subtemas": "• Marco legal de estacionamientos\n• Ley de estacionamientos vigente\n• Responsabilidades y obligaciones\n• Derechos del usuario\n• Procedimientos de atención\n• Casos prácticos",
+      "capacitador": "Daniel Perez",
+      "duracion": "00:30:00",
       "grabacion": "https://youtu.be/ejemplo",
-      "firma": "firma_capacitador.png"
+      "firma": "firma_Daniel_Perez.png"
+    },
+    "Sospech de personas y vehículos": {
+      "nombre": "Sospech de personas y vehículos",
+      "tema_motivo": "Capacitación en identificación de personas y vehículos sospechosos",
+      "contenido_subtemas": "• Identificación de comportamientos sospechosos\n• Análisis de vehículos sospechosos\n• Protocolos de actuación\n• Técnicas de observación\n• Comunicación de incidentes\n• Casos prácticos",
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:25:00",
+      "grabacion": "https://youtu.be/ejemplo",
+      "firma": "firma_Fredy_Gutierrez.png"
+    },
+    "Personas y vehículos sospechosos": {
+      "nombre": "Personas y vehículos sospechosos",
+      "tema_motivo": "Capacitación en identificación de personas y vehículos sospechosos",
+      "contenido_subtemas": "• Identificación de comportamientos sospechosos\n• Análisis de vehículos sospechosos\n• Protocolos de actuación\n• Técnicas de observación\n• Comunicación de incidentes\n• Casos prácticos",
+      "capacitador": "Fredy Gutierrez",
+      "duracion": "00:25:00",
+      "grabacion": "https://youtu.be/ejemplo",
+      "firma": "firma_Fredy_Gutierrez.png"
+    },
+    "Excelencia de servicio 2025": {
+      "nombre": "Excelencia de servicio 2025",
+      "tema_motivo": "Capacitación en calidad de servicio",
+      "contenido_subtemas": "• Principios de excelencia en el servicio\n• Atención al cliente\n• Comunicación efectiva\n• Resolución de conflictos\n• Estándares de calidad\n• Imagen profesional\n• Casos prácticos",
+      "capacitador": "Daniel Perez",
+      "duracion": "00:35:00",
+      "grabacion": "https://youtu.be/ejemplo",
+      "firma": "firma_Daniel_Perez.png"
+    },
+    "Orientación al cliente, flexibilidad y empatía": {
+      "nombre": "Orientación al cliente, flexibilidad y empatía",
+      "tema_motivo": "Capacitación en atención al cliente",
+      "contenido_subtemas": "• Importancia de la orientación al cliente\n• Técnicas de comunicación efectiva\n• Desarrollo de la empatía\n• Flexibilidad en el servicio\n• Manejo de situaciones difíciles\n• Resolución de quejas y reclamos\n• Casos prácticos",
+      "capacitador": "Daniel Perez",
+      "duracion": "00:30:00",
+      "grabacion": "https://youtu.be/ejemplo",
+      "firma": "firma_Daniel_Perez.png"
     }
   },
   "configuracion_default": {
@@ -196,6 +250,6 @@
     "capacitador": "Jose Alvines",
     "duracion": "01:00:00",
     "grabacion": "https://youtu.be/ejemplo",
-    "firma": "firma_capacitador.png"
+    "firma": "firma_Jose_Alvines.png"
   }
 }

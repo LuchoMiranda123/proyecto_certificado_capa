@@ -13,15 +13,49 @@ def get_nombre_completo_curso(nombre_truncado, config_cursos):
     al nombre completo del curso en config_cursos.json
     """
     # Remover números y guiones bajos del inicio (ej: "1_IPERC..." -> "IPERC...")
-    nombre_limpio = nombre_truncado.lstrip('0123456789_')
+    nombre_limpio = nombre_truncado.lstrip('0123456789_').strip()
     
-    # Buscar en el JSON por coincidencia parcial
+    # Normalizar: convertir a minúsculas, remover espacios extras, puntuación
+    nombre_limpio_norm = ' '.join(nombre_limpio.lower().replace(':', '').replace(',', '').replace('_', ' ').split())
+    
+    # Buscar en el JSON por coincidencia
+    mejor_match = None
+    max_coincidencia = 0
+    
     for nombre_completo in config_cursos['cursos'].keys():
-        # Si el nombre limpio es el inicio del nombre completo
-        if nombre_completo.startswith(nombre_limpio):
+        nombre_completo_norm = ' '.join(nombre_completo.lower().replace(':', '').replace(',', '').split())
+        
+        # Método 1: El nombre limpio es el inicio del nombre completo (exacto)
+        if nombre_completo_norm.startswith(nombre_limpio_norm):
             return nombre_completo
-        # O si el nombre limpio está contenido en el nombre completo
-        if nombre_limpio in nombre_completo:
+        
+        # Método 2: Coincidencia parcial al inicio (primeras palabras)
+        palabras_limpio = nombre_limpio_norm.split()
+        palabras_completo = nombre_completo_norm.split()
+        
+        # Contar cuántas palabras consecutivas coinciden desde el inicio
+        coincidencias = 0
+        for i, palabra in enumerate(palabras_limpio):
+            if i < len(palabras_completo):
+                # Buscar la palabra en cualquier posición de las primeras palabras
+                if palabra in palabras_completo[i] or palabras_completo[i] in palabra:
+                    coincidencias += 1
+                elif any(palabra in pc or pc in palabra for pc in palabras_completo[:len(palabras_limpio)]):
+                    coincidencias += 0.5
+            else:
+                break
+        
+        if coincidencias > max_coincidencia and coincidencias >= min(2, len(palabras_limpio) * 0.6):
+            max_coincidencia = coincidencias
+            mejor_match = nombre_completo
+    
+    # Si encontramos un buen match, devolverlo
+    if mejor_match:
+        return mejor_match
+    
+    # Método 3: Buscar si el nombre limpio está contenido (menos estricto)
+    for nombre_completo in config_cursos['cursos'].keys():
+        if nombre_limpio_norm in nombre_completo.lower():
             return nombre_completo
     
     # Si no se encuentra, devolver el nombre truncado original
@@ -417,13 +451,92 @@ if st.session_state.dnis_procesados is not None:
     else:
         st.success(f"✅ Todos los datos están completos ({len(st.session_state.dnis_procesados)} registros)")
     
-    st.info("💡 Puedes editar directamente los campos Nombre y Unidad en la tabla. Los cambios se guardan automáticamente.")
+    # --- HERRAMIENTA DE EDICIÓN MASIVA DE UNIDAD ---
+    with st.expander("✏️ Cambiar Unidad en Múltiples Registros", expanded=False):
+        st.info("💡 Usa esta herramienta para cambiar la Unidad de varios registros a la vez")
+        
+        col1, col2, col3 = st.columns([2, 2, 1])
+        
+        with col1:
+            # Obtener lista de unidades únicas disponibles
+            unidades_disponibles = st.session_state.dnis_procesados['Unidad'].dropna().unique().tolist()
+            nueva_unidad = st.text_input(
+                "Nueva Unidad:", 
+                placeholder="Escribe el nombre de la unidad",
+                help="Escribe la unidad que quieres asignar a los registros seleccionados"
+            )
+            if unidades_disponibles:
+                st.caption(f"💡 Unidades existentes: {', '.join(unidades_disponibles[:3])}{'...' if len(unidades_disponibles) > 3 else ''}")
+        
+        with col2:
+            # Opciones de selección
+            modo_seleccion = st.radio(
+                "Aplicar a:",
+                ["Todos los registros", "Registros específicos (por índice)", "Registros con Unidad vacía"],
+                help="Elige qué registros quieres actualizar"
+            )
+        
+        with col3:
+            st.write("")  # Espaciador
+            st.write("")  # Espaciador
+            aplicar_cambio = st.button("✅ Aplicar", type="primary", use_container_width=True)
+        
+        if modo_seleccion == "Registros específicos (por índice)":
+            indices_str = st.text_input(
+                "Índices (separados por comas):",
+                placeholder="Ej: 1,2,3,5-10",
+                help="Puedes usar rangos con guión (5-10) o números separados por comas (1,2,3)"
+            )
+        
+        if aplicar_cambio and nueva_unidad:
+            try:
+                if modo_seleccion == "Todos los registros":
+                    st.session_state.dnis_procesados['Unidad'] = nueva_unidad
+                    st.success(f"✅ Unidad actualizada a '{nueva_unidad}' en todos los {len(st.session_state.dnis_procesados)} registros")
+                    st.rerun()
+                
+                elif modo_seleccion == "Registros con Unidad vacía":
+                    mask = st.session_state.dnis_procesados['Unidad'].isna()
+                    count = mask.sum()
+                    if count > 0:
+                        st.session_state.dnis_procesados.loc[mask, 'Unidad'] = nueva_unidad
+                        st.success(f"✅ Unidad actualizada a '{nueva_unidad}' en {count} registros vacíos")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ No hay registros con Unidad vacía")
+                
+                elif modo_seleccion == "Registros específicos (por índice)":
+                    # Parsear índices
+                    indices = []
+                    for parte in indices_str.split(','):
+                        parte = parte.strip()
+                        if '-' in parte:
+                            inicio, fin = map(int, parte.split('-'))
+                            indices.extend(range(inicio-1, fin))  # -1 porque el usuario ve índices desde 1
+                        else:
+                            indices.append(int(parte) - 1)
+                    
+                    # Validar índices
+                    indices = [i for i in indices if 0 <= i < len(st.session_state.dnis_procesados)]
+                    
+                    if indices:
+                        st.session_state.dnis_procesados.loc[indices, 'Unidad'] = nueva_unidad
+                        st.success(f"✅ Unidad actualizada a '{nueva_unidad}' en {len(indices)} registros")
+                        st.rerun()
+                    else:
+                        st.error("❌ Índices inválidos")
+            
+            except Exception as e:
+                st.error(f"❌ Error al aplicar cambios: {e}")
     
-    # Usar data_editor para editar directamente
+    st.info("💡 También puedes editar directamente en la tabla. Los cambios se guardan automáticamente.")
+    
+    # Usar data_editor para editar directamente (tabla más pequeña sin scroll)
     edited_df = st.data_editor(
         st.session_state.dnis_procesados,
         use_container_width=True,
         num_rows="fixed",
+        height=400,  # Altura fija para evitar scroll excesivo
         column_config={
             "DNI": st.column_config.TextColumn("DNI", disabled=True, width="medium"),
             "Nombre": st.column_config.TextColumn("Nombre", required=True, width="large"),
