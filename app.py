@@ -1,65 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
-from io import BytesIO
-import zipfile
 import json
-from formato_excel import create_formatted_excel
-
-# --- Función para mapear nombres truncados de Excel a nombres completos ---
-def get_nombre_completo_curso(nombre_truncado, config_cursos):
-    """
-    Mapea un nombre truncado de hoja de Excel (máx 31 caracteres) 
-    al nombre completo del curso en config_cursos.json
-    """
-    # Remover números y guiones bajos del inicio (ej: "1_IPERC..." -> "IPERC...")
-    nombre_limpio = nombre_truncado.lstrip('0123456789_').strip()
-    
-    # Normalizar: convertir a minúsculas, remover espacios extras, puntuación
-    nombre_limpio_norm = ' '.join(nombre_limpio.lower().replace(':', '').replace(',', '').replace('_', ' ').split())
-    
-    # Buscar en el JSON por coincidencia
-    mejor_match = None
-    max_coincidencia = 0
-    
-    for nombre_completo in config_cursos['cursos'].keys():
-        nombre_completo_norm = ' '.join(nombre_completo.lower().replace(':', '').replace(',', '').split())
-        
-        # Método 1: El nombre limpio es el inicio del nombre completo (exacto)
-        if nombre_completo_norm.startswith(nombre_limpio_norm):
-            return nombre_completo
-        
-        # Método 2: Coincidencia parcial al inicio (primeras palabras)
-        palabras_limpio = nombre_limpio_norm.split()
-        palabras_completo = nombre_completo_norm.split()
-        
-        # Contar cuántas palabras consecutivas coinciden desde el inicio
-        coincidencias = 0
-        for i, palabra in enumerate(palabras_limpio):
-            if i < len(palabras_completo):
-                # Buscar la palabra en cualquier posición de las primeras palabras
-                if palabra in palabras_completo[i] or palabras_completo[i] in palabra:
-                    coincidencias += 1
-                elif any(palabra in pc or pc in palabra for pc in palabras_completo[:len(palabras_limpio)]):
-                    coincidencias += 0.5
-            else:
-                break
-        
-        if coincidencias > max_coincidencia and coincidencias >= min(2, len(palabras_limpio) * 0.6):
-            max_coincidencia = coincidencias
-            mejor_match = nombre_completo
-    
-    # Si encontramos un buen match, devolverlo
-    if mejor_match:
-        return mejor_match
-    
-    # Método 3: Buscar si el nombre limpio está contenido (menos estricto)
-    for nombre_completo in config_cursos['cursos'].keys():
-        if nombre_limpio_norm in nombre_completo.lower():
-            return nombre_completo
-    
-    # Si no se encuentra, devolver el nombre truncado original
-    return nombre_truncado
+from generador_archivos import get_nombre_completo_curso, generar_zip_formatos
 
 # --- Configuración de la Página ---
 st.set_page_config(
@@ -698,10 +641,9 @@ if st.session_state.cursos_disponibles:
         with col1:
             output_format = st.radio(
                 "Formato de salida:",
-                ["Excel (.xlsx)", "PDF"],
+                ["Excel (.xlsx)", "PDF", "Ambos (Excel + PDF)"],
                 horizontal=True,
-                disabled=True,
-                help="Por ahora solo está disponible Excel"
+                help="Elige el formato de descarga"
             )
         
         generar_btn = st.button(
@@ -721,78 +663,26 @@ if st.session_state.cursos_disponibles:
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
+                # Función callback para actualizar el progreso
+                def actualizar_progreso(idx, total, curso):
+                    progress = idx / total
+                    progress_bar.progress(progress)
+                    status_text.text(f"Generando {idx}/{total}: {curso}")
+                
                 with st.spinner("Generando formatos..."):
-                    zip_buffer = BytesIO()
+                    # Llamar al generador de archivos
+                    zip_buffer, zip_filename, warnings = generar_zip_formatos(
+                        dnis_procesados=st.session_state.dnis_procesados,
+                        selected_courses=selected_courses,
+                        maestro_excel=st.session_state.maestro_excel,
+                        course_configs=course_configs,
+                        output_format=output_format,
+                        progress_callback=actualizar_progreso
+                    )
                     
-                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                        for idx, curso in enumerate(selected_courses, 1):
-                            # Actualizar progreso
-                            progress = idx / len(selected_courses)
-                            progress_bar.progress(progress)
-                            status_text.text(f"Generando {idx}/{len(selected_courses)}: {curso}")
-                            
-                            # Cargar la hoja solo cuando se necesita (lazy loading)
-                            try:
-                                maestro_curso = pd.read_excel(st.session_state.maestro_excel, sheet_name=curso)
-                            except Exception as e:
-                                st.warning(f"⚠️ No se pudo cargar datos de {curso}: {e}")
-                                maestro_curso = None
-                            
-                            # Crear DataFrame para este curso
-                            curso_data = []
-                            
-                            for idx, row in st.session_state.dnis_procesados.iterrows():
-                                dni = str(row['DNI'])
-                                
-                                # Buscar en maestro de notas
-                                nota_info = None
-                                if maestro_curso is not None:
-                                    # Detectar columna de DNI en maestro
-                                    possible_dni_cols = ['DNI', 'DOCUMENTO', 'Documento', 'dni', 'documento']
-                                    dni_col_maestro = None
-                                    
-                                    for col in possible_dni_cols:
-                                        if col in maestro_curso.columns:
-                                            dni_col_maestro = col
-                                            break
-                                    
-                                    if dni_col_maestro:
-                                        # Buscar por DNI (intentar con y sin ceros a la izquierda)
-                                        dni_sin_ceros = str(int(dni)) if dni.isdigit() else dni
-                                        nota_row = maestro_curso[
-                                            (maestro_curso[dni_col_maestro].astype(str) == dni) |
-                                            (maestro_curso[dni_col_maestro].astype(str) == dni_sin_ceros) |
-                                            (maestro_curso[dni_col_maestro].astype(str).str.zfill(8) == dni)
-                                        ]
-                                        if not nota_row.empty:
-                                            nota_info = nota_row.iloc[0]
-                                
-                                curso_data.append({
-                                    'N°': idx + 1,
-                                    'Apellidos y Nombres': row['Nombre'],
-                                    'DNI': dni,
-                                    'Unidad (Cliente)': row['Unidad'],
-                                    'Nota': nota_info['NOTA'] if nota_info is not None else '',
-                                    'Fecha Examen': nota_info['FECHA DEL EXAMEN'] if nota_info is not None else '',
-                                    'Hora Conexión': nota_info['DURACIÓN'] if nota_info is not None else ''
-                                })
-                            
-                            df_curso = pd.DataFrame(curso_data)
-                            
-                            # Obtener nombre completo del curso
-                            nombre_completo_archivo = course_configs[curso]['Nombre Curso']
-                            
-                            # Generar Excel
-                            excel_data = create_formatted_excel(df_curso, course_configs[curso])
-                            
-                            if excel_data:
-                                # Nombre del archivo: NombreCurso - Unidad (usando nombre completo)
-                                unidad = df_curso['Unidad (Cliente)'].iloc[0] if not df_curso.empty else 'Sin_Unidad'
-                                file_name = f"{nombre_completo_archivo} - {unidad}.xlsx"
-                                
-                                zip_file.writestr(file_name, excel_data)
-                    
-                    zip_buffer.seek(0)
+                    # Mostrar warnings si los hay
+                    for warning in warnings:
+                        st.warning(warning)
                     
                     # Limpiar barra de progreso
                     progress_bar.empty()
@@ -800,10 +690,18 @@ if st.session_state.cursos_disponibles:
                     
                     st.success("✅ Formatos generados correctamente")
                     
+                    # Determinar label del botón según el formato
+                    if output_format == "Excel (.xlsx)":
+                        label = "📦 Descargar ZIP con archivos Excel"
+                    elif output_format == "PDF":
+                        label = "📦 Descargar ZIP con archivos PDF"
+                    else:  # Ambos
+                        label = "📦 Descargar ZIP con archivos Excel y PDF"
+                    
                     st.download_button(
-                        label="📦 Descargar ZIP con todos los formatos",
+                        label=label,
                         data=zip_buffer.getvalue(),
-                        file_name="Formatos_Capacitacion.zip",
+                        file_name=zip_filename,
                         mime="application/zip",
                         use_container_width=True
                     )

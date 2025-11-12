@@ -10,6 +10,25 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "plantillas", "logo_liderman.png")
 FIRMAS_DIR = os.path.join(BASE_DIR, "plantillas", "firmas")
 
+# Dimensiones originales de las firmas e imágenes (ancho x alto en píxeles)
+FIRMAS_DIMENSIONES = {
+    'logo_liderman.png': (333, 150),  # Logo principal
+    'firma_Brenda_Bendezu.png': (64, 37),
+    'firma_Daniel_Perez.png': (106, 48),
+    'firma_eliana.png': (250, 100),
+    'firma_Fredy_Gutierrez.png': (97, 52),
+    'firma_Gabriela_Garcia.png': (119, 64),
+    'firma_Indira_Merino.png': (57, 56),
+    'firma_Jose_Alvines.png': (82, 43),
+    'firma_Juan_Terrones.png': (52, 37),
+    'firma_Luis_Sanchez.png': (87, 62),
+    'firma_Renzo_Asian.png': (106, 49),
+    'firma_Ruth_Ponce.png': (118, 67),
+    'firma_Segundo_Maldonado.png': (61, 36),
+    'firma_Yesenia_Armacanqui.png': (61, 33),
+    'firma_capacitador.png': (82, 43),  # Default (mismo que Jose Alvines)
+}
+
 def get_firma_path(nombre_archivo):
     """
     Obtiene la ruta completa de un archivo de firma.
@@ -43,6 +62,53 @@ def apply_border_to_range(ws, start_cell, end_cell, border):
         for col in range(min_col, max_col + 1):
             ws.cell(row=row, column=col).border = border
 
+def calculate_optimal_image_size(original_width, original_height, max_width, max_height, fill_percent=0.8, allow_compress=False):
+    """
+    Calcula el tamaño óptimo de una imagen para que ocupe el fill_percent del espacio disponible.
+    
+    Args:
+        original_width: Ancho original de la imagen en píxeles
+        original_height: Alto original de la imagen en píxeles
+        max_width: Ancho máximo disponible en píxeles (del espacio de la celda)
+        max_height: Alto máximo disponible en píxeles (del espacio de la celda)
+        fill_percent: Porcentaje del espacio a ocupar (default 0.8 = 80%)
+        allow_compress: Si True, permite comprimir la imagen si es necesario. Si False, solo estira.
+    
+    Returns:
+        tuple: (width, height) en píxeles
+    """
+    # Calcular espacio objetivo (80% del disponible)
+    target_width = max_width * fill_percent
+    target_height = max_height * fill_percent
+    
+    # Calcular ratio de aspecto
+    aspect_ratio = original_width / original_height
+    
+    # Escalar manteniendo proporción
+    if target_width / aspect_ratio <= target_height:
+        # Limitado por ancho
+        final_width = target_width
+        final_height = target_width / aspect_ratio
+    else:
+        # Limitado por alto
+        final_height = target_height
+        final_width = target_height * aspect_ratio
+    
+    # Si no se permite comprimir y la imagen es más grande, usar tamaño original
+    if not allow_compress:
+        if final_width < original_width or final_height < original_height:
+            # La imagen es más pequeña que el espacio, estirar
+            final_width = max(final_width, original_width)
+            final_height = max(final_height, original_height)
+            # Reajustar para mantener proporción si se pasó
+            if final_width > target_width or final_height > target_height:
+                if final_width / aspect_ratio <= target_height:
+                    final_height = final_width / aspect_ratio
+                else:
+                    final_width = final_height * aspect_ratio
+    
+    return int(final_width), int(final_height)
+
 def add_centered_image(ws, img_path, cell_address, img_width, img_height):
     """
     Agrega una imagen con el tamaño especificado en una celda.
@@ -58,6 +124,128 @@ def add_centered_image(ws, img_path, cell_address, img_width, img_height):
         return True
     except Exception as e:
         print(f"Error: No se pudo agregar imagen: {e}")
+        return False
+
+def add_truly_centered_image(ws, img_path, start_col, start_row, end_col, end_row, img_width, img_height, cell_width_px, cell_height_px):
+    """
+    Agrega una imagen verdaderamente centrada en un rango de celdas usando TwoCellAnchor.
+    
+    Args:
+        ws: worksheet
+        img_path: ruta de la imagen
+        start_col: columna inicial (0-indexed)
+        start_row: fila inicial (0-indexed)
+        end_col: columna final (0-indexed)
+        end_row: fila final (0-indexed)
+        img_width: ancho de la imagen en píxeles
+        img_height: alto de la imagen en píxeles
+        cell_width_px: ancho total del rango de celdas en píxeles
+        cell_height_px: alto total del rango de celdas en píxeles
+    """
+    try:
+        from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
+        from openpyxl.utils.units import pixels_to_EMU
+        
+        # Calcular offsets para centrar (asegurar que sean positivos)
+        offset_x = max(0, (cell_width_px - img_width) / 2)
+        offset_y = max(0, (cell_height_px - img_height) / 2)
+        
+        # Crear imagen
+        img = OpenpyxlImage(img_path)
+        img.width = img_width
+        img.height = img_height
+        
+        # Crear anclaje centrado
+        _from = AnchorMarker(col=start_col, row=start_row, colOff=pixels_to_EMU(offset_x), rowOff=pixels_to_EMU(offset_y))
+        to = AnchorMarker(col=start_col, row=start_row, colOff=pixels_to_EMU(offset_x + img_width), rowOff=pixels_to_EMU(offset_y + img_height))
+        img.anchor = TwoCellAnchor(editAs='oneCell', _from=_from, to=to)
+        
+        ws.add_image(img)
+        return True
+    except Exception as e:
+        print(f"Error: No se pudo agregar imagen centrada: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def add_logo_liderman(ws):
+    """
+    Agrega el logo Liderman en A1:B4 con tamaño grande y visible.
+    """
+    try:
+        from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
+        from openpyxl.utils.units import pixels_to_EMU
+        from openpyxl.drawing.xdr import XDRPositiveSize2D
+        
+        if not os.path.exists(LOGO_PATH):
+            print(f"ADVERTENCIA: Logo no encontrado en {LOGO_PATH}")
+            return False
+        
+        # Dimensiones del logo ajustadas para caber en A1:B4
+        logo_width = 290
+        logo_height = 70
+        
+        # Posición con offset para centrar visualmente en A1:B4
+        offset_x = 95  # Mover a la derecha para centrar
+        offset_y = 3   # Mover hacia abajo para centrar
+        
+        # Crear imagen
+        img = OpenpyxlImage(LOGO_PATH)
+        print(f"DEBUG: Logo con offset_x={offset_x}, offset_y={offset_y}, tamaño={logo_width}x{logo_height}")
+        
+        # Usar OneCellAnchor con tamaño fijo (NO se comprime)
+        marker = AnchorMarker(col=0, row=0, colOff=pixels_to_EMU(offset_x), rowOff=pixels_to_EMU(offset_y))
+        size = XDRPositiveSize2D(pixels_to_EMU(logo_width), pixels_to_EMU(logo_height))
+        img.anchor = OneCellAnchor(_from=marker, ext=size)
+        
+        ws.add_image(img)
+        print(f"✓ Logo agregado: {logo_width}x{logo_height}px en posición ({offset_x}, {offset_y})")
+        return True
+        
+    except Exception as e:
+        print(f"ERROR LOGO: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def add_firma_eliana(ws, footer_row):
+    """
+    Agrega la firma de Eliana en G:I del footer con tamaño grande y visible.
+    """
+    try:
+        from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
+        from openpyxl.utils.units import pixels_to_EMU
+        from openpyxl.drawing.xdr import XDRPositiveSize2D
+        
+        firma_path = get_firma_path('firma_eliana.png')
+        if not firma_path:
+            print("ADVERTENCIA: Firma Eliana no encontrada")
+            return False
+        
+        # Dimensiones de la firma (80% del tamaño original 285x132)
+        firma_width = 228
+        firma_height = 106
+        
+        # Posición con offset para centrar en G:I (3 columnas)
+        offset_x = 48   # Centrar en el espacio G:I
+        offset_y = 14   # Centrar verticalmente
+        
+        # Crear imagen
+        img = OpenpyxlImage(firma_path)
+        
+        # Usar OneCellAnchor con tamaño fijo (NO se comprime)
+        marker = AnchorMarker(col=6, row=footer_row-1, colOff=pixels_to_EMU(offset_x), rowOff=pixels_to_EMU(offset_y))
+        size = XDRPositiveSize2D(pixels_to_EMU(firma_width), pixels_to_EMU(firma_height))
+        img.anchor = OneCellAnchor(_from=marker, ext=size)
+        
+        ws.add_image(img)
+        print(f"✓ Firma agregada: {firma_width}x{firma_height}px en posición ({offset_x}, {offset_y})")
+        return True
+        
+    except Exception as e:
+        print(f"ERROR FIRMA: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def create_formatted_excel(df_course, course_details):
@@ -112,13 +300,8 @@ def create_formatted_excel(df_course, course_details):
         ws.row_dimensions[3].height = 22
         ws.row_dimensions[4].height = 22
         
-        if os.path.exists(LOGO_PATH):
-            # Logo Liderman GRANDE: 280 x 90 píxeles para ocupar bien el espacio A1:B4
-            logo_centrado = add_centered_image(ws, LOGO_PATH, 'A1', 280, 90)
-            if not logo_centrado:
-                print(f"Advertencia: No se pudo cargar el logo")
-        else:
-            print(f"Advertencia: No se encontró el archivo de logo en {LOGO_PATH}")
+        # Agregar logo Liderman usando función específica
+        add_logo_liderman(ws)
 
         ws.merge_cells('C1:G4')
         cell = ws['C1']
@@ -273,7 +456,7 @@ def create_formatted_excel(df_course, course_details):
         
         ws.merge_cells('C11:E11')
         ws['C11'].value = course_details['Tema/Motivo']
-        ws['C11'].font = font_normal
+        ws['C11'].font = font_bold_10  # NEGRITA para el nombre del tema/motivo
         ws['C11'].alignment = center_align
         apply_border_to_range(ws, 'C11', 'E11', thin_border)
         
@@ -317,7 +500,7 @@ def create_formatted_excel(df_course, course_details):
         apply_border_to_range(ws, 'C12', 'I12', thin_border)
 
         # --- FILA 13: Capacitador/Firma ---
-        ws.row_dimensions[13].height = 60  # Aumentar altura para mejor visualización
+        ws.row_dimensions[13].height = 95  # Aumentar altura para firmas más grandes
         
         ws.merge_cells('A13:B13')
         ws['A13'].value = "Capacitador/Entrenador:"
@@ -339,47 +522,77 @@ def create_formatted_excel(df_course, course_details):
         # Firma (Imagen) - Manejar una o múltiples firmas
         ws['F13'].border = thin_border
         ws['F13'].alignment = Alignment(horizontal='center', vertical='center')
-        ws.row_dimensions[13].height = 60  # Altura suficiente para las firmas
         
         firmas_str = course_details.get('Firma', 'firma_capacitador.png')
         # Separar firmas si hay múltiples (separadas por |)
         firmas_list = [f.strip() for f in firmas_str.split('|')]
         
+        # Espacio disponible en F13: 143x127 px (95 puntos = 127px) → usar 85% para firmas más grandes sin comprimir
         if len(firmas_list) == 1:
             # Una sola firma - centrada en F13
             firma_path = get_firma_path(firmas_list[0])
             if firma_path:
-                add_centered_image(ws, firma_path, 'F13', 110, 45)
+                # Obtener dimensiones originales
+                firma_nombre = os.path.basename(firma_path)
+                orig_w, orig_h = FIRMAS_DIMENSIONES.get(firma_nombre, (82, 43))
+                # Calcular tamaño óptimo para F13 (NO comprimir, solo estirar si es necesario)
+                firma_w, firma_h = calculate_optimal_image_size(orig_w, orig_h, 143, 127, 0.85, allow_compress=False)
+                # F13 = columna 5, fila 12 (0-indexed), 143x127 px
+                add_truly_centered_image(ws, firma_path, 5, 12, 5, 12, firma_w, firma_h, 143, 127)
         elif len(firmas_list) == 2:
-            # Dos firmas - lado a lado en F13
+            # Dos firmas - lado a lado en F13 (cada una ocupa 50% del ancho)
             firma1_path = get_firma_path(firmas_list[0])
             firma2_path = get_firma_path(firmas_list[1])
             
             if firma1_path and firma2_path:
-                # Crear dos imágenes más pequeñas lado a lado
-                img1 = OpenpyxlImage(firma1_path)
-                img1.width = 55  # Mitad del ancho para que quepan las dos
-                img1.height = 40
-                img1.anchor = 'F13'  # Primera firma a la izquierda
-                ws.add_image(img1)
-                
-                img2 = OpenpyxlImage(firma2_path)
-                img2.width = 55  # Mitad del ancho
-                img2.height = 40
-                # Posicionar la segunda firma a la derecha (offset manual)
                 from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
                 from openpyxl.utils.units import pixels_to_EMU
                 
-                _from = AnchorMarker(col=5, row=12, colOff=pixels_to_EMU(70), rowOff=pixels_to_EMU(10))
-                to = AnchorMarker(col=5, row=12, colOff=pixels_to_EMU(125), rowOff=pixels_to_EMU(50))
-                img2.anchor = TwoCellAnchor(editAs='oneCell', _from=_from, to=to)
+                # Espacio para cada firma: 70x127 px (mitad del ancho, altura completa 95pts = 127px) → NO comprimir
+                firma1_nombre = os.path.basename(firma1_path)
+                firma2_nombre = os.path.basename(firma2_path)
+                orig_w1, orig_h1 = FIRMAS_DIMENSIONES.get(firma1_nombre, (82, 43))
+                orig_w2, orig_h2 = FIRMAS_DIMENSIONES.get(firma2_nombre, (82, 43))
+                
+                # Calcular tamaños óptimos MÁS GRANDES (90% del espacio para mayor visibilidad, sin comprimir)
+                firma1_w, firma1_h = calculate_optimal_image_size(orig_w1, orig_h1, 70, 127, 0.90, allow_compress=False)
+                firma2_w, firma2_h = calculate_optimal_image_size(orig_w2, orig_h2, 70, 127, 0.90, allow_compress=False)
+                
+                # Centrar las dos firmas horizontalmente en F13 (143px de ancho total)
+                # Calcular espaciado para centrado: (143 - firma1_w - firma2_w) / 3 para dejar espacios iguales
+                espacio_horizontal = max(5, (143 - firma1_w - firma2_w) / 3)
+                offset_vertical = (127 - max(firma1_h, firma2_h)) / 2  # Centrar verticalmente
+                
+                # Primera firma a la izquierda con margen
+                img1 = OpenpyxlImage(firma1_path)
+                img1.width = firma1_w
+                img1.height = firma1_h
+                _from1 = AnchorMarker(col=5, row=12, colOff=pixels_to_EMU(espacio_horizontal), rowOff=pixels_to_EMU(offset_vertical))
+                to1 = AnchorMarker(col=5, row=12, colOff=pixels_to_EMU(espacio_horizontal + firma1_w), rowOff=pixels_to_EMU(offset_vertical + firma1_h))
+                img1.anchor = TwoCellAnchor(editAs='oneCell', _from=_from1, to=to1)
+                ws.add_image(img1)
+                
+                # Segunda firma a la derecha con margen
+                img2 = OpenpyxlImage(firma2_path)
+                img2.width = firma2_w
+                img2.height = firma2_h
+                offset_horizontal_2 = espacio_horizontal * 2 + firma1_w
+                _from2 = AnchorMarker(col=5, row=12, colOff=pixels_to_EMU(offset_horizontal_2), rowOff=pixels_to_EMU(offset_vertical))
+                to2 = AnchorMarker(col=5, row=12, colOff=pixels_to_EMU(offset_horizontal_2 + firma2_w), rowOff=pixels_to_EMU(offset_vertical + firma2_h))
+                img2.anchor = TwoCellAnchor(editAs='oneCell', _from=_from2, to=to2)
                 ws.add_image(img2)
             elif firma1_path:
                 # Solo primera firma disponible
-                add_centered_image(ws, firma1_path, 'F13', 110, 45)
+                firma_nombre = os.path.basename(firma1_path)
+                orig_w, orig_h = FIRMAS_DIMENSIONES.get(firma_nombre, (82, 43))
+                firma_w, firma_h = calculate_optimal_image_size(orig_w, orig_h, 143, 127, 0.85, allow_compress=False)
+                add_truly_centered_image(ws, firma1_path, 5, 12, 5, 12, firma_w, firma_h, 143, 127)
             elif firma2_path:
                 # Solo segunda firma disponible
-                add_centered_image(ws, firma2_path, 'F13', 110, 45)
+                firma_nombre = os.path.basename(firma2_path)
+                orig_w, orig_h = FIRMAS_DIMENSIONES.get(firma_nombre, (82, 43))
+                firma_w, firma_h = calculate_optimal_image_size(orig_w, orig_h, 143, 127, 0.85, allow_compress=False)
+                add_truly_centered_image(ws, firma2_path, 5, 12, 5, 12, firma_w, firma_h, 143, 127)
         
         ws['G13'].value = "Duración:"
         ws['G13'].font = font_bold_10
@@ -480,13 +693,11 @@ def create_formatted_excel(df_course, course_details):
         ws[f'G{footer_start_row}'].alignment = center_align
         apply_border_to_range(ws, f'G{footer_start_row}', f'I{footer_start_row}', thin_border)
         
-        # Ajustar altura de fila para la firma Karina (2.51 cm de alto)
+        # Ajustar altura de fila para la firma Eliana
         ws.row_dimensions[footer_start_row].height = 100
         
-        firma_responsable = get_firma_path('firma_eliana.png')  # Firma del responsable del registro
-        if firma_responsable:
-            # Firma Eliana: Aumentada para mejor visualización - 230 x 110 píxeles
-            add_centered_image(ws, firma_responsable, f'G{footer_start_row}', 230, 110)
+        # Agregar firma Eliana (FIRMA PRINCIPAL) usando función específica
+        add_firma_eliana(ws, footer_start_row)
         
         # FILA 2 del pie: Cargo + Fecha
         ws.merge_cells(f'A{footer_start_row+1}:E{footer_start_row+1}')
