@@ -9,7 +9,69 @@ from io import BytesIO
 import zipfile
 import tempfile
 import time
+from datetime import datetime, timedelta
 from formato_excel import create_formatted_excel
+
+
+def sumar_tiempos(tiempo1, tiempo2):
+    """
+    Suma dos tiempos en formato HH:MM:SS o H:MM:SS.
+    
+    Args:
+        tiempo1 (str): Primer tiempo (ej: "01:30:00" o "1:30:00")
+        tiempo2 (str): Segundo tiempo (ej: "00:45:00" o "45:00")
+    
+    Returns:
+        str: Suma de tiempos en formato HH:MM:SS
+    """
+    try:
+        # Si alguno de los tiempos está vacío, retornar el otro
+        if not tiempo1 or pd.isna(tiempo1):
+            return str(tiempo2) if tiempo2 and not pd.isna(tiempo2) else "00:00:00"
+        if not tiempo2 or pd.isna(tiempo2):
+            return str(tiempo1) if tiempo1 and not pd.isna(tiempo1) else "00:00:00"
+        
+        # Convertir a string por si vienen como otros tipos
+        tiempo1 = str(tiempo1).strip()
+        tiempo2 = str(tiempo2).strip()
+        
+        # Parsear tiempo1
+        partes1 = tiempo1.split(':')
+        if len(partes1) == 3:
+            h1, m1, s1 = map(int, partes1)
+        elif len(partes1) == 2:
+            h1 = 0
+            m1, s1 = map(int, partes1)
+        else:
+            return "00:00:00"
+        
+        # Parsear tiempo2
+        partes2 = tiempo2.split(':')
+        if len(partes2) == 3:
+            h2, m2, s2 = map(int, partes2)
+        elif len(partes2) == 2:
+            h2 = 0
+            m2, s2 = map(int, partes2)
+        else:
+            return tiempo1  # Si tiempo2 es inválido, retornar tiempo1
+        
+        # Crear objetos timedelta y sumar
+        delta1 = timedelta(hours=h1, minutes=m1, seconds=s1)
+        delta2 = timedelta(hours=h2, minutes=m2, seconds=s2)
+        suma = delta1 + delta2
+        
+        # Convertir de vuelta a formato HH:MM:SS
+        total_seconds = int(suma.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    except Exception as e:
+        print(f"⚠️ Error al sumar tiempos '{tiempo1}' + '{tiempo2}': {e}")
+        # En caso de error, retornar el primer tiempo o 00:00:00
+        return str(tiempo1) if tiempo1 and not pd.isna(tiempo1) else "00:00:00"
 
 
 def get_nombre_completo_curso(nombre_truncado, config_cursos):
@@ -199,12 +261,21 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
         print(f"⚠️ No se pudo cargar datos de {curso}: {e}")
         maestro_curso = None
     
+    # Obtener la duración del video desde la configuración del curso
+    duracion_video = course_config.get('Duracion', '00:00:00')
+    
     # Crear DataFrame para este curso
     curso_data = []
     
     for idx, row in dnis_procesados.iterrows():
         dni = str(row['DNI'])
         nota_info = buscar_nota_en_maestro(dni, maestro_curso)
+        
+        # Obtener el tiempo de conexión del maestro
+        tiempo_conexion = nota_info['DURACIÓN'] if nota_info is not None else ''
+        
+        # Sumar el tiempo de conexión con la duración del video
+        tiempo_total = sumar_tiempos(tiempo_conexion, duracion_video)
         
         curso_data.append({
             'N°': idx + 1,
@@ -213,7 +284,7 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
             'Unidad (Cliente)': row['Unidad'],
             'Nota': nota_info['NOTA'] if nota_info is not None else '',
             'Fecha Examen': nota_info['FECHA DEL EXAMEN'] if nota_info is not None else '',
-            'Hora Conexión': nota_info['DURACIÓN'] if nota_info is not None else ''
+            'Hora Conexión': tiempo_total
         })
     
     df_curso = pd.DataFrame(curso_data)
