@@ -372,7 +372,7 @@ if procesar_btn:
                     unidad = None
                 
                 processed_data.append({
-                    'DNI': dni_formatted,  # Guardar con formato correcto
+                    'DNI': dni_formatted,
                     'Nombre': nombre,
                     'Unidad': unidad
                 })
@@ -518,14 +518,120 @@ else:
     st.info("ℹ️ Selecciona los cursos para generar los formatos")
 
 if st.session_state.cursos_disponibles:
-    selected_courses = st.multiselect(
-        "Selecciona los cursos a generar:",
-        st.session_state.cursos_disponibles,
-        help="Puedes seleccionar múltiples cursos",
-        key="selected_courses"
-    )
+    # Definir categorías de cursos
+    CATEGORIAS_CURSOS = {
+        'SSOMA': [
+            'IPERC, mapa de riesgos y procedimientos PETS',
+            'Primeros auxilios y prevención contra incendios',
+            'Respuesta ante emergencias, Contingencias y desastres naturales',
+            'Respuesta ante emergencias, contingencias y desastres naturales',
+            'Salud ocupacional y estilo de vida saludable',
+            'Seguridad y prevención en el puesto de trabajo',
+            'IPERC, mapa de riesgos y procedimientos PETS (Parte 02)',
+            'Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial'
+        ],
+        'TÉCNICO': [
+            'Defensa personal y uso de la fuerza',
+            'Derechos humanos, principios voluntarios y constitución',
+            'Prevención de delitos de comercio internacional',
+            'Integridad y ética en la seguridad privada',
+            'Armas: Conocimiento y manipulación',
+            'Normas y procedimientos de seguridad',
+            'Legislación y seguridad privada',
+            'Seguridad de instalaciones',
+            'Eventos indeseables, perturbadores y lugares hostiles'
+        ],
+        'ESTRATÉGICO': [
+            'Hostigamiento sexual laboral',
+            'Fundamentos de SGI - 2025',
+            'Fundamentos del Sistema Integrado de Gestión',
+            'Prevención de riesgos de soborno',
+            'Prevención de delitos relacionados a ciberdelincuencia'
+        ]
+    }
     
+    # Clasificar cursos disponibles por categoría
+    cursos_por_categoria = {cat: [] for cat in CATEGORIAS_CURSOS.keys()}
+    cursos_por_categoria['OTROS'] = []
+    
+    for curso in st.session_state.cursos_disponibles:
+        # Mapear nombre truncado a nombre completo
+        nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos['cursos'])
+        
+        asignado = False
+        for categoria, lista_cursos in CATEGORIAS_CURSOS.items():
+            if nombre_completo in lista_cursos:
+                cursos_por_categoria[categoria].append(curso)
+                asignado = True
+                break
+        
+        if not asignado:
+            cursos_por_categoria['OTROS'].append(curso)
+    
+    # Mostrar selección por categorías
+    st.markdown("### Selecciona cursos por categoría:")
+    
+    selected_courses = []
+    
+    # Crear tabs para cada categoría
+    tabs = st.tabs(['🛡️ SSOMA', '🔧 TÉCNICO', '📊 ESTRATÉGICO', '📦 OTROS'])
+    
+    with tabs[0]:  # SSOMA
+        if cursos_por_categoria['SSOMA']:
+            st.markdown("**Cursos de Seguridad, Salud Ocupacional y Medio Ambiente:**")
+            cursos_ssoma = st.multiselect(
+                "Selecciona cursos de SSOMA:",
+                cursos_por_categoria['SSOMA'],
+                key="ssoma_courses"
+            )
+            selected_courses.extend(cursos_ssoma)
+            st.info(f"📌 {len(cursos_ssoma)} curso(s) de SSOMA seleccionado(s)")
+        else:
+            st.warning("No hay cursos de SSOMA disponibles")
+    
+    with tabs[1]:  # TÉCNICO
+        if cursos_por_categoria['TÉCNICO']:
+            st.markdown("**Cursos Técnicos de Seguridad:**")
+            cursos_tecnico = st.multiselect(
+                "Selecciona cursos técnicos:",
+                cursos_por_categoria['TÉCNICO'],
+                key="tecnico_courses"
+            )
+            selected_courses.extend(cursos_tecnico)
+            st.info(f"📌 {len(cursos_tecnico)} curso(s) técnico(s) seleccionado(s)")
+        else:
+            st.warning("No hay cursos técnicos disponibles")
+    
+    with tabs[2]:  # ESTRATÉGICO
+        if cursos_por_categoria['ESTRATÉGICO']:
+            st.markdown("**Cursos Estratégicos y de Gestión:**")
+            cursos_estrategico = st.multiselect(
+                "Selecciona cursos estratégicos:",
+                cursos_por_categoria['ESTRATÉGICO'],
+                key="estrategico_courses"
+            )
+            selected_courses.extend(cursos_estrategico)
+            st.info(f"📌 {len(cursos_estrategico)} curso(s) estratégico(s) seleccionado(s)")
+        else:
+            st.warning("No hay cursos estratégicos disponibles")
+    
+    with tabs[3]:  # OTROS
+        if cursos_por_categoria['OTROS']:
+            st.markdown("**Otros Cursos:**")
+            cursos_otros = st.multiselect(
+                "Selecciona otros cursos:",
+                cursos_por_categoria['OTROS'],
+                key="otros_courses"
+            )
+            selected_courses.extend(cursos_otros)
+            st.info(f"📌 {len(cursos_otros)} curso(s) adicional(es) seleccionado(s)")
+        else:
+            st.info("No hay otros cursos disponibles")
+    
+    # Resumen de selección total
     if selected_courses:
+        st.markdown("---")
+        st.success(f"✅ **Total: {len(selected_courses)} curso(s) seleccionado(s) en todas las categorías**")
         st.session_state.paso_completado['paso3_cursos'] = True
         st.info(f"📌 {len(selected_courses)} curso(s) seleccionado(s)")
         
@@ -548,7 +654,7 @@ if st.session_state.cursos_disponibles:
             # Verificar coincidencias con mapeo
             st.markdown("**Mapeo de nombres:**")
             for curso in selected_courses:
-                nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos)
+                nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos['cursos'])
                 if nombre_completo in cursos_json:
                     st.success(f"✅ '{curso}' → '{nombre_completo}'")
                 else:
@@ -567,7 +673,7 @@ if st.session_state.cursos_disponibles:
         
         for curso in selected_courses:
             # Mapear nombre truncado a nombre completo
-            nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos)
+            nombre_completo = get_nombre_completo_curso(curso, st.session_state.config_cursos['cursos'])
             
             # Obtener configuración del curso desde el archivo JSON usando el nombre completo
             curso_config = st.session_state.config_cursos['cursos'].get(nombre_completo, None)
@@ -629,12 +735,19 @@ if st.session_state.cursos_disponibles:
         
         # Resumen antes de generar
         with st.expander("📋 Resumen de la configuración", expanded=True):
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Personal", len(st.session_state.dnis_procesados))
             with col2:
-                st.metric("Cursos seleccionados", len(selected_courses))
+                st.metric("Total Cursos", len(selected_courses))
             with col3:
+                # Contar cursos por categoría seleccionados
+                count_ssoma = len([c for c in selected_courses if c in cursos_por_categoria['SSOMA']])
+                count_tecnico = len([c for c in selected_courses if c in cursos_por_categoria['TÉCNICO']])
+                count_estrategico = len([c for c in selected_courses if c in cursos_por_categoria['ESTRATÉGICO']])
+                count_otros = len([c for c in selected_courses if c in cursos_por_categoria['OTROS']])
+                st.metric("Por Categoría", f"S:{count_ssoma} T:{count_tecnico} E:{count_estrategico} O:{count_otros}")
+            with col4:
                 st.metric("Formatos a generar", len(selected_courses))
         
         col1, col2 = st.columns(2)
@@ -645,6 +758,16 @@ if st.session_state.cursos_disponibles:
                 horizontal=True,
                 help="Elige el formato de descarga"
             )
+        
+        # Opciones de descarga por grupo
+        st.markdown("### 📦 Opciones de Descarga")
+        
+        descarga_option = st.radio(
+            "¿Cómo deseas descargar los formatos?",
+            ["Todo en un solo ZIP", "ZIP separado por categoría"],
+            horizontal=True,
+            help="Descarga todo junto o separado por categorías SSOMA, TÉCNICO, ESTRATÉGICO"
+        )
         
         generar_btn = st.button(
             "🚀 Generar Formatos", 
@@ -659,52 +782,123 @@ if st.session_state.cursos_disponibles:
             elif st.session_state.dnis_procesados['Nombre'].isna().any():
                 st.error("❌ Completa los datos faltantes antes de generar")
             else:
-                # Barra de progreso para la generación
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+                if descarga_option == "Todo en un solo ZIP":
+                    # Generación tradicional: todo en un solo ZIP
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    def actualizar_progreso(idx, total, curso):
+                        progress = idx / total
+                        progress_bar.progress(progress)
+                        status_text.text(f"Generando {idx}/{total}: {curso}")
+                    
+                    with st.spinner("Generando formatos..."):
+                        zip_buffer, zip_filename, warnings = generar_zip_formatos(
+                            dnis_procesados=st.session_state.dnis_procesados,
+                            selected_courses=selected_courses,
+                            maestro_excel=st.session_state.maestro_excel,
+                            course_configs=course_configs,
+                            output_format=output_format,
+                            progress_callback=actualizar_progreso
+                        )
+                        
+                        for warning in warnings:
+                            st.warning(warning)
+                        
+                        progress_bar.empty()
+                        status_text.empty()
+                        
+                        st.success("✅ Formatos generados correctamente")
+                        
+                        if output_format == "Excel (.xlsx)":
+                            label = "📦 Descargar ZIP con archivos Excel"
+                        elif output_format == "PDF":
+                            label = "📦 Descargar ZIP con archivos PDF"
+                        else:
+                            label = "📦 Descargar ZIP con archivos Excel y PDF"
+                        
+                        st.download_button(
+                            label=label,
+                            data=zip_buffer.getvalue(),
+                            file_name=zip_filename,
+                            mime="application/zip",
+                            use_container_width=True
+                        )
                 
-                # Función callback para actualizar el progreso
-                def actualizar_progreso(idx, total, curso):
-                    progress = idx / total
-                    progress_bar.progress(progress)
-                    status_text.text(f"Generando {idx}/{total}: {curso}")
-                
-                with st.spinner("Generando formatos..."):
-                    # Llamar al generador de archivos
-                    zip_buffer, zip_filename, warnings = generar_zip_formatos(
-                        dnis_procesados=st.session_state.dnis_procesados,
-                        selected_courses=selected_courses,
-                        maestro_excel=st.session_state.maestro_excel,
-                        course_configs=course_configs,
-                        output_format=output_format,
-                        progress_callback=actualizar_progreso
-                    )
+                else:  # ZIP separado por categoría
+                    st.markdown("### 📦 Descargas por Categoría")
                     
-                    # Mostrar warnings si los hay
-                    for warning in warnings:
-                        st.warning(warning)
+                    # Separar cursos por categoría
+                    cursos_ssoma_sel = [c for c in selected_courses if c in cursos_por_categoria['SSOMA']]
+                    cursos_tecnico_sel = [c for c in selected_courses if c in cursos_por_categoria['TÉCNICO']]
+                    cursos_estrategico_sel = [c for c in selected_courses if c in cursos_por_categoria['ESTRATÉGICO']]
+                    cursos_otros_sel = [c for c in selected_courses if c in cursos_por_categoria['OTROS']]
                     
-                    # Limpiar barra de progreso
-                    progress_bar.empty()
-                    status_text.empty()
+                    categorias_con_cursos = []
+                    if cursos_ssoma_sel:
+                        categorias_con_cursos.append(('SSOMA', '🛡️', cursos_ssoma_sel))
+                    if cursos_tecnico_sel:
+                        categorias_con_cursos.append(('TÉCNICO', '🔧', cursos_tecnico_sel))
+                    if cursos_estrategico_sel:
+                        categorias_con_cursos.append(('ESTRATÉGICO', '📊', cursos_estrategico_sel))
+                    if cursos_otros_sel:
+                        categorias_con_cursos.append(('OTROS', '📦', cursos_otros_sel))
                     
-                    st.success("✅ Formatos generados correctamente")
-                    
-                    # Determinar label del botón según el formato
-                    if output_format == "Excel (.xlsx)":
-                        label = "📦 Descargar ZIP con archivos Excel"
-                    elif output_format == "PDF":
-                        label = "📦 Descargar ZIP con archivos PDF"
-                    else:  # Ambos
-                        label = "📦 Descargar ZIP con archivos Excel y PDF"
-                    
-                    st.download_button(
-                        label=label,
-                        data=zip_buffer.getvalue(),
-                        file_name=zip_filename,
-                        mime="application/zip",
-                        use_container_width=True
-                    )
+                    # Generar ZIPs separados
+                    for categoria_nombre, icono, cursos_categoria in categorias_con_cursos:
+                        with st.expander(f"{icono} {categoria_nombre} ({len(cursos_categoria)} cursos)", expanded=True):
+                            st.markdown(f"**Cursos incluidos:**")
+                            for curso in cursos_categoria:
+                                st.markdown(f"- {curso}")
+                            
+                            # Generar ZIP para esta categoría
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            def actualizar_progreso_cat(idx, total, curso):
+                                progress = idx / total
+                                progress_bar.progress(progress)
+                                status_text.text(f"[{categoria_nombre}] Generando {idx}/{total}: {curso}")
+                            
+                            # Filtrar course_configs para esta categoría
+                            course_configs_cat = {k: v for k, v in course_configs.items() if k in cursos_categoria}
+                            
+                            with st.spinner(f"Generando formatos de {categoria_nombre}..."):
+                                zip_buffer, zip_filename, warnings = generar_zip_formatos(
+                                    dnis_procesados=st.session_state.dnis_procesados,
+                                    selected_courses=cursos_categoria,
+                                    maestro_excel=st.session_state.maestro_excel,
+                                    course_configs=course_configs_cat,
+                                    output_format=output_format,
+                                    progress_callback=actualizar_progreso_cat
+                                )
+                                
+                                for warning in warnings:
+                                    st.warning(warning)
+                                
+                                progress_bar.empty()
+                                status_text.empty()
+                                
+                                st.success(f"✅ {categoria_nombre} generado correctamente")
+                                
+                                # Ajustar nombre del archivo ZIP
+                                zip_filename_cat = zip_filename.replace('.zip', f'_{categoria_nombre}.zip')
+                                
+                                if output_format == "Excel (.xlsx)":
+                                    label = f"📥 Descargar {categoria_nombre} - Excel"
+                                elif output_format == "PDF":
+                                    label = f"📥 Descargar {categoria_nombre} - PDF"
+                                else:
+                                    label = f"📥 Descargar {categoria_nombre} - Excel + PDF"
+                                
+                                st.download_button(
+                                    label=label,
+                                    data=zip_buffer.getvalue(),
+                                    file_name=zip_filename_cat,
+                                    mime="application/zip",
+                                    use_container_width=True,
+                                    key=f"download_{categoria_nombre}"
+                                )
     else:
         st.info("👆 Selecciona al menos un curso para continuar")
 

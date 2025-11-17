@@ -669,8 +669,16 @@ def create_formatted_excel(df_course, course_details):
         # Comenzar exactamente después de la última fila de datos (sin espacios)
         footer_start_row = data_header_row + len(df_course) + 1
         
-        # FILA 1 del pie: Apellidos y Nombres + Firma + Imagen
-        ws.merge_cells(f'A{footer_start_row}:E{footer_start_row}')
+        # FILA ENCABEZADO: "Responsable del Registro:" con fondo gris
+        ws.merge_cells(f'A{footer_start_row}:I{footer_start_row}')
+        ws[f'A{footer_start_row}'].value = "Responsable del Registro:"
+        ws[f'A{footer_start_row}'].font = font_bold_10
+        ws[f'A{footer_start_row}'].alignment = left_align
+        ws[f'A{footer_start_row}'].fill = grey_fill
+        apply_border_to_range(ws, f'A{footer_start_row}', f'I{footer_start_row}', thin_border)
+        
+        # FILA 1 del pie: Apellidos y Nombres + Firma + Imagen (ahora en footer_start_row + 1)
+        ws.merge_cells(f'A{footer_start_row+1}:E{footer_start_row+1}')
         # Usar Rich Text para combinar negrita y normal
         from openpyxl.cell.text import InlineFont
         from openpyxl.cell.rich_text import TextBlock, CellRichText
@@ -679,56 +687,56 @@ def create_formatted_excel(df_course, course_details):
         rich_text = CellRichText()
         rich_text.append(TextBlock(InlineFont(b=True, sz=10), "Apellidos y Nombres: "))
         rich_text.append(TextBlock(InlineFont(sz=10), "Cuaila Colque, Eliana"))
-        ws[f'A{footer_start_row}'].value = rich_text
-        ws[f'A{footer_start_row}'].alignment = center_left_align  # Centrado vertical, pegado a izquierda
-        apply_border_to_range(ws, f'A{footer_start_row}', f'E{footer_start_row}', thin_border)
-        
-        ws[f'F{footer_start_row}'].value = "Firma:"
-        ws[f'F{footer_start_row}'].font = font_bold_10
-        ws[f'F{footer_start_row}'].alignment = center_align
-        ws[f'F{footer_start_row}'].border = thin_border
-        
-        # Imagen de firma en G:I (centrada y más grande)
-        ws.merge_cells(f'G{footer_start_row}:I{footer_start_row}')
-        ws[f'G{footer_start_row}'].alignment = center_align
-        apply_border_to_range(ws, f'G{footer_start_row}', f'I{footer_start_row}', thin_border)
-        
-        # Ajustar altura de fila para la firma Eliana
-        ws.row_dimensions[footer_start_row].height = 100
-        
-        # Agregar firma Eliana (FIRMA PRINCIPAL) usando función específica
-        add_firma_eliana(ws, footer_start_row)
-        
-        # FILA 2 del pie: Cargo + Fecha
-        ws.merge_cells(f'A{footer_start_row+1}:E{footer_start_row+1}')
-        # Crear texto con formato mixto: "Cargo:" en negrita, resto normal
-        rich_text_cargo = CellRichText()
-        rich_text_cargo.append(TextBlock(InlineFont(b=True, sz=10), "Cargo: "))
-        rich_text_cargo.append(TextBlock(InlineFont(sz=10), "Coordinadora de Capacitación y Desarrollo"))
-        ws[f'A{footer_start_row+1}'].value = rich_text_cargo
+        ws[f'A{footer_start_row+1}'].value = rich_text
         ws[f'A{footer_start_row+1}'].alignment = center_left_align  # Centrado vertical, pegado a izquierda
         apply_border_to_range(ws, f'A{footer_start_row+1}', f'E{footer_start_row+1}', thin_border)
         
-        ws[f'F{footer_start_row+1}'].value = "Fecha:"
+        ws[f'F{footer_start_row+1}'].value = "Firma:"
         ws[f'F{footer_start_row+1}'].font = font_bold_10
         ws[f'F{footer_start_row+1}'].alignment = center_align
         ws[f'F{footer_start_row+1}'].border = thin_border
         
+        # Imagen de firma en G:I (centrada y más grande)
         ws.merge_cells(f'G{footer_start_row+1}:I{footer_start_row+1}')
-        ws[f'G{footer_start_row+1}'].value = datetime.date.today().strftime('%d/%m/%Y')
-        ws[f'G{footer_start_row+1}'].font = font_normal
         ws[f'G{footer_start_row+1}'].alignment = center_align
         apply_border_to_range(ws, f'G{footer_start_row+1}', f'I{footer_start_row+1}', thin_border)
+        
+        # Ajustar altura de fila para la firma Eliana
+        ws.row_dimensions[footer_start_row+1].height = 100
+        
+        # Agregar firma Eliana (FIRMA PRINCIPAL) usando función específica (ahora en footer_start_row+1)
+        add_firma_eliana(ws, footer_start_row+1)
+        
+        # FILA 2 del pie: Cargo + Fecha (ahora en footer_start_row+2)
+        ws.merge_cells(f'A{footer_start_row+2}:E{footer_start_row+2}')
+        # Crear texto con formato mixto: "Cargo:" en negrita, resto normal
+        rich_text_cargo = CellRichText()
+        rich_text_cargo.append(TextBlock(InlineFont(b=True, sz=10), "Cargo: "))
+        rich_text_cargo.append(TextBlock(InlineFont(sz=10), "Coordinadora de Capacitación y Desarrollo"))
+        ws[f'A{footer_start_row+2}'].value = rich_text_cargo
+        ws[f'A{footer_start_row+2}'].alignment = center_left_align  # Centrado vertical, pegado a izquierda
+        apply_border_to_range(ws, f'A{footer_start_row+2}', f'E{footer_start_row+2}', thin_border)
+        
+        ws[f'F{footer_start_row+2}'].value = "Fecha:"
+        ws[f'F{footer_start_row+2}'].font = font_bold_10
+        ws[f'F{footer_start_row+2}'].alignment = center_align
+        ws[f'F{footer_start_row+2}'].border = thin_border
+        
+        ws.merge_cells(f'G{footer_start_row+2}:I{footer_start_row+2}')
+        ws[f'G{footer_start_row+2}'].value = datetime.date.today().strftime('%d/%m/%Y')
+        ws[f'G{footer_start_row+2}'].font = font_normal
+        ws[f'G{footer_start_row+2}'].alignment = center_align
+        apply_border_to_range(ws, f'G{footer_start_row+2}', f'I{footer_start_row+2}', thin_border)
 
         # --- CONFIGURACIÓN DE PÁGINA PARA IMPRESIÓN/PDF ---
-        # Configurar para que todo quepa en 1 página
+        # Configurar para A4: columnas en 1 página, filas en múltiples páginas
         ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT  # Orientación vertical
         ws.page_setup.paperSize = ws.PAPERSIZE_A4  # Tamaño A4
-        ws.page_setup.fitToPage = True  # Ajustar a la página
-        ws.page_setup.fitToHeight = 1  # Ajustar a 1 página de alto
-        ws.page_setup.fitToWidth = 1   # Ajustar a 1 página de ancho
+        ws.page_setup.fitToPage = True  # Ajustar a página (solo ancho)
+        ws.page_setup.fitToHeight = 0  # 0 = Sin límite de páginas verticales
+        ws.page_setup.fitToWidth = 1   # 1 = Todas las columnas en 1 página de ancho
         
-        # Configurar márgenes (en pulgadas)
+        # Configurar márgenes (en pulgadas) - más estrechos para aprovechar espacio
         ws.page_margins.left = 0.25
         ws.page_margins.right = 0.25
         ws.page_margins.top = 0.25
@@ -737,7 +745,7 @@ def create_formatted_excel(df_course, course_details):
         ws.page_margins.footer = 0.1
         
         # Configurar área de impresión (desde A1 hasta la última celda con datos)
-        last_row = footer_start_row + 1
+        last_row = footer_start_row + 2  # Ahora son 3 filas de footer (encabezado + 2 filas de datos)
         ws.print_area = f'A1:I{last_row}'
         
         # NO centrar en la página - alinear al inicio (arriba-izquierda)

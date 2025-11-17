@@ -11,6 +11,21 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from formato_excel import create_formatted_excel
+import unicodedata
+import difflib
+
+
+def quitar_acentos(texto):
+    """
+    Quita acentos y caracteres especiales de un texto.
+    
+    Args:
+        texto (str): Texto a normalizar
+    
+    Returns:
+        str: Texto sin acentos
+    """
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
 
 
 def sumar_tiempos(tiempo1, tiempo2):
@@ -74,22 +89,33 @@ def sumar_tiempos(tiempo1, tiempo2):
         return str(tiempo1) if tiempo1 and not pd.isna(tiempo1) else "00:00:00"
 
 
-def get_nombre_completo_curso(nombre_truncado, config_cursos):
+def get_nombre_completo_curso(nombre_truncado, courses_dict):
     """
     Mapea un nombre truncado de hoja de Excel (máx 31 caracteres) 
-    al nombre completo del curso en config_cursos.json
+    al nombre completo del curso en courses_dict con logging detallado.
     
     Args:
         nombre_truncado (str): Nombre truncado de la hoja de Excel
-        config_cursos (dict): Configuración de cursos desde JSON
+        courses_dict (dict): Diccionario de cursos con nombres completos como keys
     
     Returns:
         str: Nombre completo del curso o el nombre truncado si no se encuentra
     """
-    # EXTRAER el número de hoja antes de limpiar (ej: "14_IPERC..." -> 14)
+    # DICCIONARIO DE ALIAS PARA CASOS ESPECIALES DE TRUNCAMIENTO
+    ALIAS_MAP = {
+        'eventos indeseables y disturb': 'Eventos indeseables, perturbadores y lugares hostiles',
+        'eventos indeseables y disturbar': 'Eventos indeseables, perturbadores y lugares hostiles',
+        'eventos indeseables, disturb': 'Eventos indeseables, perturbadores y lugares hostiles',
+        'protocolos y procedimientos de': 'Protocolos y procedimientos de agente parking o valet parking',
+        'gestion de residuos solidos imp': 'Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial',
+        'gestion de residuos solidos, imp': 'Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial',
+    }
+    
+    print(f"\n[MATCH] === Iniciando matching para: '{nombre_truncado}' ===")
+    
+    # 1. PREPROCESAMIENTO MÍNIMO
     numero_hoja = None
     if nombre_truncado and nombre_truncado[0].isdigit():
-        # Extraer todos los dígitos del inicio
         digitos = ''
         for char in nombre_truncado:
             if char.isdigit():
@@ -101,104 +127,236 @@ def get_nombre_completo_curso(nombre_truncado, config_cursos):
         if digitos:
             numero_hoja = int(digitos)
     
-    # Remover números y guiones bajos del inicio (ej: "1_IPERC..." -> "IPERC...")
+    # Remover solo números y guiones bajos del inicio
     nombre_limpio = nombre_truncado.lstrip('0123456789_').strip()
+    print(f"[MATCH] Nombre limpio (sin prefijo numérico): '{nombre_limpio}'")
     
-    # Normalizar: convertir a minúsculas, remover espacios extras, puntuación
-    nombre_limpio_norm = ' '.join(nombre_limpio.lower().replace(':', '').replace(',', '').replace('_', ' ').split())
+    # MÉTODO 0: CHECK DE ALIAS PRIMERO (antes de cualquier otro método)
+    nombre_limpio_lower = nombre_limpio.lower()
+    for alias, nombre_completo in ALIAS_MAP.items():
+        if nombre_limpio_lower.startswith(alias) or alias in nombre_limpio_lower:
+            if nombre_completo in courses_dict:
+                print(f"[MATCH] OK ALIAS encontrado: '{alias}' -> '{nombre_completo}'")
+                print(f"[MATCH] === Resultado: '{nombre_completo}' (Metodo: ALIAS) ===\n")
+                return nombre_completo
     
-    # DETECTAR si el nombre tiene indicadores de "Parte 02", "Parte 2", etc.
-    tiene_parte = 'parte' in nombre_limpio_norm or 'part' in nombre_limpio_norm
-    tiene_02 = '02' in nombre_truncado or '2' in nombre_limpio_norm.split()[-1] if nombre_limpio_norm.split() else False
+    # Detectar variantes
+    tiene_parte_02 = 'parte 02' in nombre_limpio.lower() or '(parte 02)' in nombre_limpio.lower()
+    tiene_2025 = '2025' in nombre_limpio
+    es_hoja_alta = numero_hoja is not None and numero_hoja >= 14  # Cambiado de >15 a >=14
+    print(f"[MATCH] Indicadores: Parte02={tiene_parte_02}, 2025={tiene_2025}, Hoja#{numero_hoja}, HojaAlta={es_hoja_alta}")
     
-    # LÓGICA ESPECIAL: Si el número de hoja es mayor a 10 y hay múltiples cursos similares,
-    # probablemente es una "Parte 02" o versión posterior
-    es_probablemente_parte2 = numero_hoja is not None and numero_hoja > 10
+    # 2. MÉTODO 1: MATCH EXACTO POR INICIO (31 caracteres)
+    print(f"[MATCH] Método 1: Match exacto por inicio...")
+    candidatos_exactos = []
+    for nombre_completo in courses_dict.keys():
+        # Comparar los primeros N caracteres (longitud del truncado)
+        if nombre_completo.startswith(nombre_limpio):
+            candidatos_exactos.append(nombre_completo)
+            print(f"[MATCH] Candidato exacto: '{nombre_completo}'")
     
-    # Buscar en el JSON por coincidencia
-    mejor_match = None
-    candidatos = []
-    
-    for nombre_completo in config_cursos['cursos'].keys():
-        nombre_completo_norm = ' '.join(nombre_completo.lower().replace(':', '').replace(',', '').split())
-        nombre_completo_tiene_parte = 'parte' in nombre_completo_norm or 'part' in nombre_completo_norm
+    if candidatos_exactos:
+        # Si es hoja alta y hay versión "Parte 02", priorizarla
+        if es_hoja_alta:
+            for candidato in candidatos_exactos:
+                if 'parte 02' in candidato.lower() or '(parte 02)' in candidato.lower():
+                    print(f"[MATCH] OK Match exacto (Parte 02 por hoja alta): '{candidato}'")
+                    print(f"[MATCH] === Resultado: '{candidato}' (Método: EXACTO+HOJA_ALTA) ===\n")
+                    return candidato
         
-        # Método 1: El nombre limpio es el inicio del nombre completo (exacto)
-        if nombre_completo_norm.startswith(nombre_limpio_norm):
-            candidatos.append({
+        # Si tiene indicador 2025, priorizar versión 2025
+        if tiene_2025:
+            for candidato in candidatos_exactos:
+                if '2025' in candidato:
+                    print(f"[MATCH] OK Match exacto (2025): '{candidato}'")
+                    print(f"[MATCH] === Resultado: '{candidato}' (Método: EXACTO+2025) ===\n")
+                    return candidato
+        
+        # Si NO tiene indicadores de variante, priorizar versión base (más corta)
+        if not tiene_parte_02 and not tiene_2025 and not es_hoja_alta:
+            candidatos_base = [c for c in candidatos_exactos if 'parte 02' not in c.lower() and '2025' not in c]
+            if candidatos_base:
+                mejor = min(candidatos_base, key=len)
+                print(f"[MATCH] OK Match exacto (version base): '{mejor}'")
+                print(f"[MATCH] === Resultado: '{mejor}' (Método: EXACTO) ===\n")
+                return mejor
+        
+        # Devolver el primero encontrado
+        mejor = candidatos_exactos[0]
+        print(f"[MATCH] OK Match exacto encontrado: '{mejor}'")
+        print(f"[MATCH] === Resultado: '{mejor}' (Método: EXACTO) ===\n")
+        return mejor
+    
+    # 3. MÉTODO 2: MATCH POR PALABRAS CLAVE ÚNICAS
+    print(f"[MATCH] Método 2: Match por palabras clave...")
+    palabras_truncado = [p.lower() for p in nombre_limpio.split() if len(p) > 2]
+    print(f"[MATCH] Palabras clave extraídas: {palabras_truncado}")
+    
+    candidatos_palabras_clave = []
+    for nombre_completo in courses_dict.keys():
+        palabras_completo = [p.lower() for p in nombre_completo.split() if len(p) > 2]
+        
+        # Contar cuántas palabras del truncado están en el completo EN EL MISMO ORDEN
+        palabras_encontradas = 0
+        idx_anterior = -1
+        for palabra_trunc in palabras_truncado:
+            for idx, palabra_comp in enumerate(palabras_completo):
+                if idx > idx_anterior and palabra_trunc in palabra_comp:
+                    palabras_encontradas += 1
+                    idx_anterior = idx
+                    break
+        
+        porcentaje_match = palabras_encontradas / len(palabras_truncado) if palabras_truncado else 0
+        
+        # Requiere al menos 80% de coincidencia de palabras o mínimo 3 palabras
+        if palabras_encontradas >= 3 or porcentaje_match >= 0.8:
+            candidatos_palabras_clave.append({
                 'nombre': nombre_completo,
-                'longitud': len(nombre_completo_norm),
-                'tiene_parte': nombre_completo_tiene_parte,
-                'prioridad': 1000
+                'palabras_match': palabras_encontradas,
+                'porcentaje': porcentaje_match,
+                'longitud': len(nombre_completo)
             })
+    
+    if candidatos_palabras_clave:
+        print(f"[MATCH] Candidatos por palabras clave: {len(candidatos_palabras_clave)}")
+        for c in candidatos_palabras_clave:
+            print(f"[MATCH]   - '{c['nombre']}' (match: {c['palabras_match']}/{len(palabras_truncado)}, {c['porcentaje']:.0%})")
+    
+    # 4. MÉTODO 3: FILTRADO POR VARIANTES
+    if candidatos_palabras_clave:
+        print(f"[MATCH] Método 3: Filtrado por variantes...")
         
-        # Método 2: Coincidencia parcial al inicio (primeras palabras)
-        palabras_limpio = nombre_limpio_norm.split()
-        palabras_completo = nombre_completo_norm.split()
+        # Separar candidatos con y sin variantes
+        candidatos_con_parte02 = [c for c in candidatos_palabras_clave if 'parte 02' in c['nombre'].lower() or '(parte 02)' in c['nombre'].lower()]
+        candidatos_con_2025 = [c for c in candidatos_palabras_clave if '2025' in c['nombre']]
+        candidatos_base = [c for c in candidatos_palabras_clave if 'parte 02' not in c['nombre'].lower() and '2025' not in c['nombre']]
         
-        # Contar cuántas palabras consecutivas coinciden desde el inicio
-        coincidencias = 0
-        for i, palabra in enumerate(palabras_limpio):
-            if i < len(palabras_completo):
-                if palabra in palabras_completo[i] or palabras_completo[i] in palabra:
-                    coincidencias += 1
-                elif any(palabra in pc or pc in palabra for pc in palabras_completo[:len(palabras_limpio)]):
-                    coincidencias += 0.5
-            else:
-                break
+        # Decidir según indicadores
+        if tiene_parte_02 or es_hoja_alta:
+            if candidatos_con_parte02:
+                mejor = max(candidatos_con_parte02, key=lambda x: (x['palabras_match'], -x['longitud']))
+                print(f"[MATCH] OK Seleccionado (con Parte 02): '{mejor['nombre']}'")
+                print(f"[MATCH] === Resultado: '{mejor['nombre']}' (Método: PALABRAS_CLAVE+VARIANTE) ===\n")
+                return mejor['nombre']
         
-        if coincidencias >= min(2, len(palabras_limpio) * 0.6):
-            candidatos.append({
+        if tiene_2025:
+            if candidatos_con_2025:
+                mejor = max(candidatos_con_2025, key=lambda x: (x['palabras_match'], -x['longitud']))
+                print(f"[MATCH] OK Seleccionado (con 2025): '{mejor['nombre']}'")
+                print(f"[MATCH] === Resultado: '{mejor['nombre']}' (Método: PALABRAS_CLAVE+VARIANTE) ===\n")
+                return mejor['nombre']
+        
+        # Si NO tiene indicadores de variante, priorizar versiones base
+        if not tiene_parte_02 and not tiene_2025 and not es_hoja_alta:
+            if candidatos_base:
+                mejor = max(candidatos_base, key=lambda x: (x['palabras_match'], -x['longitud']))
+                print(f"[MATCH] OK Seleccionado (version base): '{mejor['nombre']}'")
+                print(f"[MATCH] === Resultado: '{mejor['nombre']}' (Método: PALABRAS_CLAVE) ===\n")
+                return mejor['nombre']
+        
+        # Si no hay candidatos base pero sí otros, tomar el mejor
+        mejor = max(candidatos_palabras_clave, key=lambda x: (x['palabras_match'], -x['longitud']))
+        print(f"[MATCH] OK Seleccionado (mejor disponible): '{mejor['nombre']}'")
+        print(f"[MATCH] === Resultado: '{mejor['nombre']}' (Método: PALABRAS_CLAVE) ===\n")
+        return mejor['nombre']
+    
+    # 5. MÉTODO 4: FUZZY MATCHING (ÚLTIMO RECURSO)
+    print(f"[MATCH] Método 4: Fuzzy matching (último recurso)...")
+    candidatos_fuzzy = []
+    for nombre_completo in courses_dict.keys():
+        # Comparar el truncado con el inicio del nombre completo
+        longitud_comparacion = min(len(nombre_limpio), len(nombre_completo))
+        inicio_completo = nombre_completo[:longitud_comparacion]
+        
+        ratio = difflib.SequenceMatcher(None, nombre_limpio.lower(), inicio_completo.lower()).ratio()
+        
+        if ratio >= 0.90:  # Umbral MUY alto
+            candidatos_fuzzy.append({
                 'nombre': nombre_completo,
-                'longitud': len(nombre_completo_norm),
-                'tiene_parte': nombre_completo_tiene_parte,
-                'prioridad': coincidencias
+                'ratio': ratio,
+                'longitud': len(nombre_completo)
             })
     
-    # FILTRAR candidatos según si tiene "Parte" o no
-    if candidatos:
-        if tiene_parte or tiene_02 or es_probablemente_parte2:
-            candidatos_con_parte = [c for c in candidatos if c['tiene_parte']]
-            if candidatos_con_parte:
-                mejor_match = max(candidatos_con_parte, key=lambda x: (x['prioridad'], x['longitud']))['nombre']
-            else:
-                mejor_match = max(candidatos, key=lambda x: (x['prioridad'], x['longitud']))['nombre']
-        else:
-            candidatos_sin_parte = [c for c in candidatos if not c['tiene_parte']]
-            if candidatos_sin_parte:
-                mejor_match = min(candidatos_sin_parte, key=lambda x: x['longitud'])['nombre']
-            else:
-                mejor_match = min(candidatos, key=lambda x: x['longitud'])['nombre']
-    
-    if mejor_match:
-        return mejor_match
-    
-    # Método 3: Buscar si el nombre limpio está contenido (menos estricto)
-    matches_contenidos = []
-    for nombre_completo in config_cursos['cursos'].keys():
-        nombre_completo_norm = ' '.join(nombre_completo.lower().replace(':', '').replace(',', '').split())
-        nombre_completo_tiene_parte = 'parte' in nombre_completo_norm
+    if candidatos_fuzzy:
+        print(f"[MATCH] Candidatos fuzzy (≥90%): {len(candidatos_fuzzy)}")
+        for c in candidatos_fuzzy:
+            print(f"[MATCH]   - '{c['nombre']}' (similitud: {c['ratio']:.0%})")
         
-        if nombre_limpio_norm in nombre_completo_norm:
-            matches_contenidos.append({
-                'nombre': nombre_completo,
-                'longitud': len(nombre_completo),
-                'tiene_parte': nombre_completo_tiene_parte
-            })
+        mejor = max(candidatos_fuzzy, key=lambda x: (x['ratio'], -x['longitud']))
+        print(f"[MATCH] OK Seleccionado (fuzzy): '{mejor['nombre']}'")
+        print(f"[MATCH] === Resultado: '{mejor['nombre']}' (Método: FUZZY) ===\n")
+        return mejor['nombre']
     
-    if matches_contenidos:
-        if tiene_parte or tiene_02 or es_probablemente_parte2:
-            matches_con_parte = [m for m in matches_contenidos if m['tiene_parte']]
-            if matches_con_parte:
-                return max(matches_con_parte, key=lambda x: x['longitud'])['nombre']
-        else:
-            matches_sin_parte = [m for m in matches_contenidos if not m['tiene_parte']]
-            if matches_sin_parte:
-                return min(matches_sin_parte, key=lambda x: x['longitud'])['nombre']
-        
-        return max(matches_contenidos, key=lambda x: x['longitud'])['nombre']
-    
+    # 6. NO SE ENCONTRÓ MATCH
+    print(f"[MATCH] WARNING: No se encontro match para '{nombre_truncado}'")
+    print(f"[MATCH] === Resultado: '{nombre_truncado}' (SIN MATCH) ===\n")
     return nombre_truncado
+
+
+def test_matching():
+    """
+    Prueba los casos problemáticos reportados.
+    Ejecutar esta función para validar el matching.
+    """
+    print("\n" + "="*80)
+    print("INICIANDO TESTS DE MATCHING")
+    print("="*80)
+    
+    # Simular diccionario de cursos
+    courses_dict = {
+        "IPERC, mapa de riesgos y procedimientos PETS": {},
+        "IPERC, mapa de riesgos y procedimientos PETS (Parte 02)": {},
+        "Salud ocupacional y estilo de vida saludable": {},
+        "Seguridad y prevención en el puesto de trabajo": {},
+        "Prevención de delitos de comercio internacional": {},
+        "Personas y vehículos sospechosos": {},
+        "Legislación y seguridad privada": {},
+        "Normas y procedimientos de seguridad": {},
+        "Fundamentos de SGI - 2025": {},
+        "Fundamentos del Sistema Integrado de Gestión": {},
+        "Eventos indeseables, perturbadores y lugares hostiles": {},
+    }
+    
+    test_cases = [
+        ("1_IPERC, mapa de riesgos y pr", "IPERC, mapa de riesgos y procedimientos PETS"),
+        ("3_Salud ocupacional y estilo de", "Salud ocupacional y estilo de vida saludable"),
+        ("2_Seguridad y prevención en el", "Seguridad y prevención en el puesto de trabajo"),
+        ("14_IPERC, mapa de riesgos y pro", "IPERC, mapa de riesgos y procedimientos PETS (Parte 02)"),
+        ("Prevención de delitos de comer", "Prevención de delitos de comercio internacional"),
+        ("Personas y vehículos sospechoso", "Personas y vehículos sospechosos"),
+        ("Fundamentos de SGI - 2025", "Fundamentos de SGI - 2025"),
+        ("8_Eventos Indeseables y disturb", "Eventos indeseables, perturbadores y lugares hostiles"),
+    ]
+    
+    resultados = []
+    for truncado, esperado in test_cases:
+        resultado = get_nombre_completo_curso(truncado, courses_dict)
+        es_correcto = resultado == esperado
+        resultados.append({
+            'truncado': truncado,
+            'esperado': esperado,
+            'obtenido': resultado,
+            'correcto': es_correcto
+        })
+    
+    # Resumen
+    print("\n" + "="*80)
+    print("RESUMEN DE TESTS")
+    print("="*80)
+    correctos = sum(1 for r in resultados if r['correcto'])
+    total = len(resultados)
+    
+    for r in resultados:
+        status = "[OK] PASS" if r['correcto'] else "[X] FAIL"
+        print(f"{status} | Truncado: '{r['truncado']}'")
+        print(f"     | Esperado: '{r['esperado']}'")
+        print(f"     | Obtenido: '{r['obtenido']}'")
+        print()
+    
+    print(f"Resultado: {correctos}/{total} tests pasados ({correctos/total*100:.0f}%)")
+    print("="*80 + "\n")
+    
+    return correctos == total
 
 
 def buscar_nota_en_maestro(dni, maestro_curso):
@@ -241,7 +399,7 @@ def buscar_nota_en_maestro(dni, maestro_curso):
     return None
 
 
-def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
+def procesar_curso(curso, dnis_procesados, maestro_excel, config_cursos):
     """
     Procesa un curso individual: extrae datos y genera el DataFrame.
     
@@ -249,11 +407,28 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
         curso (str): Nombre del curso (hoja de Excel)
         dnis_procesados (DataFrame): DataFrame con DNIs y datos del personal
         maestro_excel (ExcelFile): Archivo Excel con las notas
-        course_config (dict): Configuración específica del curso
+        config_cursos (dict): Configuración de cursos desde JSON
     
     Returns:
         tuple: (DataFrame del curso, nombre completo del archivo, prefijo numérico)
     """
+    # Obtener la configuración del curso usando el nombre truncado como clave
+    course_config = config_cursos.get(curso, {})
+    
+    # Si no hay configuración, crear una por defecto
+    if not course_config:
+        course_config = {
+            'Nombre Curso': curso,
+            'Duracion': '00:00:00',
+            'Tema/Motivo': 'Curso no encontrado',
+            'Contenido/ Sub Temas': 'Contenido no disponible',
+            'Capacitador/Entrenador': 'Desconocido',
+            'Grabacion/ Material': '',
+            'Firma': ''
+        }
+    
+    # Obtener el nombre completo del archivo
+    nombre_completo_archivo = course_config.get('Nombre Curso', curso)
     # Cargar la hoja del curso
     try:
         maestro_curso = pd.read_excel(maestro_excel, sheet_name=curso)
@@ -269,6 +444,8 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
     
     for idx, row in dnis_procesados.iterrows():
         dni = str(row['DNI'])
+        
+        # Buscar nota específica de este curso en el maestro
         nota_info = buscar_nota_en_maestro(dni, maestro_curso)
         
         # Obtener el tiempo de conexión del maestro
@@ -289,9 +466,6 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
     
     df_curso = pd.DataFrame(curso_data)
     
-    # Obtener nombre completo del curso
-    nombre_completo_archivo = course_config['Nombre Curso']
-    
     # Extraer el número de hoja original del nombre truncado (ej: "14_IPERC..." -> "14_")
     prefijo_numero = ""
     if curso and curso[0].isdigit():
@@ -301,7 +475,7 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, course_config):
             else:
                 break
     
-    return df_curso, nombre_completo_archivo, prefijo_numero
+    return df_curso, nombre_completo_archivo, prefijo_numero, course_config
 
 
 def convertir_excel_a_pdf(excel_data, base_filename, excel_app):
@@ -334,8 +508,28 @@ def convertir_excel_a_pdf(excel_data, base_filename, excel_app):
         # Pequeño delay para asegurar que Excel esté listo
         time.sleep(0.5)
         
-        # Abrir el workbook y exportar a PDF
+        # Abrir el workbook y configurar para exportar a PDF en A4
         wb = excel_app.Workbooks.Open(os.path.abspath(tmp_excel_path))
+        
+        # Configurar cada hoja para impresión en A4: columnas en 1 página, filas en múltiples
+        for ws in wb.Worksheets:
+            ws.PageSetup.PaperSize = 9  # 9 = A4 (210 x 297 mm)
+            ws.PageSetup.Orientation = 1  # 1 = Portrait (vertical)
+            ws.PageSetup.FitToPagesWide = 1  # Ajustar ANCHO a 1 página (todas las columnas)
+            ws.PageSetup.FitToPagesTall = False  # NO ajustar alto (permitir múltiples páginas)
+            ws.PageSetup.Zoom = False  # Desactivar zoom manual (usar FitToPages)
+            ws.PageSetup.CenterHorizontally = False  # No centrar horizontalmente
+            ws.PageSetup.CenterVertically = False  # No centrar verticalmente
+            
+            # Configurar márgenes pequeños (en pulgadas)
+            ws.PageSetup.LeftMargin = excel_app.InchesToPoints(0.25)
+            ws.PageSetup.RightMargin = excel_app.InchesToPoints(0.25)
+            ws.PageSetup.TopMargin = excel_app.InchesToPoints(0.25)
+            ws.PageSetup.BottomMargin = excel_app.InchesToPoints(0.25)
+            ws.PageSetup.HeaderMargin = excel_app.InchesToPoints(0.1)
+            ws.PageSetup.FooterMargin = excel_app.InchesToPoints(0.1)
+        
+        # Exportar a PDF con la configuración establecida
         wb.ExportAsFixedFormat(0, os.path.abspath(tmp_pdf_path))  # 0 = xlTypePDF
         wb.Close(False)
         wb = None
@@ -428,21 +622,19 @@ def generar_zip_formatos(dnis_procesados, selected_courses, maestro_excel,
                     progress_callback(idx, len(selected_courses), curso)
                 
                 # Procesar el curso
-                df_curso, nombre_completo_archivo, prefijo_numero = procesar_curso(
-                    curso, dnis_procesados, maestro_excel, course_configs[curso]
+                df_curso, nombre_completo_archivo, prefijo_numero, course_config = procesar_curso(
+                    curso, dnis_procesados, maestro_excel, course_configs
                 )
                 
                 # Generar Excel
-                excel_data = create_formatted_excel(df_curso, course_configs[curso])
+                excel_data = create_formatted_excel(df_curso, course_config)
                 
                 if excel_data:
                     # Nombre del archivo
                     unidad = df_curso['Unidad (Cliente)'].iloc[0] if not df_curso.empty else 'Sin_Unidad'
                     
-                    if prefijo_numero:
-                        base_filename = f"{prefijo_numero}{nombre_completo_archivo} - {unidad}"
-                    else:
-                        base_filename = f"{nombre_completo_archivo} - {unidad}"
+                    # Usar el nombre completo directamente (ya no agregamos prefijo, porque puede duplicarse)
+                    base_filename = f"{nombre_completo_archivo} - {unidad}"
                     
                     # Agregar Excel al ZIP si se solicitó
                     if generar_excel:
