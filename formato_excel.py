@@ -258,7 +258,14 @@ def create_formatted_excel(df_course, course_details):
         
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = course_details['Nombre Curso'][:31]
+        
+        # Sanitizar el nombre de la hoja (Excel no permite: : \ / ? * [ ])
+        sheet_name = course_details['Nombre Curso']
+        invalid_chars = [':', '\\', '/', '?', '*', '[', ']']
+        for char in invalid_chars:
+            sheet_name = sheet_name.replace(char, ' -')
+        # Truncar a 31 caracteres (límite de Excel)
+        ws.title = sheet_name[:31]
 
         # --- Definir Estilos ---
         font_bold_14 = Font(bold=True, size=14)

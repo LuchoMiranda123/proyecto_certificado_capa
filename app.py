@@ -535,6 +535,7 @@ if st.session_state.cursos_disponibles:
             'Derechos humanos, principios voluntarios y constitución',
             'Prevención de delitos de comercio internacional',
             'Integridad y ética en la seguridad privada',
+            'Armas: conocimiento y manipulación',
             'Armas: Conocimiento y manipulación',
             'Normas y procedimientos de seguridad',
             'Legislación y seguridad privada',

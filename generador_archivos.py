@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from formato_excel import create_formatted_excel
 import unicodedata
 import difflib
+import re
 
 
 def quitar_acentos(texto):
@@ -26,6 +27,38 @@ def quitar_acentos(texto):
         str: Texto sin acentos
     """
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+
+
+def sanitizar_nombre_archivo(nombre):
+    """
+    Sanitiza un nombre para que sea válido en nombres de archivo y hojas de Excel.
+    
+    Args:
+        nombre (str): Nombre a sanitizar
+    
+    Returns:
+        str: Nombre sanitizado
+    """
+    # Caracteres inválidos para nombres de archivo en Windows: < > : " / \ | ? *
+    # Caracteres inválidos para nombres de hoja en Excel: : \ / ? * [ ]
+    # Reemplazarlos por guión para mantener legibilidad
+    nombre_limpio = nombre
+    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*', '[', ']']
+    for char in invalid_chars:
+        nombre_limpio = nombre_limpio.replace(char, '-')
+    
+    # Limpiar espacios múltiples y guiones múltiples
+    nombre_limpio = re.sub(r'\s+', ' ', nombre_limpio)
+    nombre_limpio = re.sub(r'-+', '-', nombre_limpio)
+    
+    # Limpiar espacios alrededor de guiones: " - " -> " - " (ya está bien), "- " -> "-", " -" -> "-"
+    nombre_limpio = re.sub(r'\s*-\s*', ' - ', nombre_limpio)
+    nombre_limpio = re.sub(r'\s+-\s+', ' - ', nombre_limpio)  # Normalizar espacios alrededor de guiones
+    
+    # Quitar espacios y guiones al inicio y final
+    nombre_limpio = nombre_limpio.strip(' -')
+    
+    return nombre_limpio
 
 
 def sumar_tiempos(tiempo1, tiempo2):
@@ -109,6 +142,10 @@ def get_nombre_completo_curso(nombre_truncado, courses_dict):
         'protocolos y procedimientos de': 'Protocolos y procedimientos de agente parking o valet parking',
         'gestion de residuos solidos imp': 'Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial',
         'gestion de residuos solidos, imp': 'Gestión de residuos sólidos, impactos ambientales y responsabilidad social empresarial',
+        'armas: conocimiento y manipulac': 'Armas: conocimiento y manipulación',
+        'armas: conocimiento y manipula': 'Armas: conocimiento y manipulación',
+        'armas_ conocimiento y manipu': 'Armas: conocimiento y manipulación',
+        'armas_ conocimiento y manipul': 'Armas: conocimiento y manipulación',
     }
     
     print(f"\n[MATCH] === Iniciando matching para: '{nombre_truncado}' ===")
@@ -412,11 +449,17 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, config_cursos):
     Returns:
         tuple: (DataFrame del curso, nombre completo del archivo, prefijo numérico)
     """
+    print(f"\n[PROCESAR] Procesando curso: '{curso}'")
+    print(f"[PROCESAR] Cursos disponibles en config_cursos: {list(config_cursos.keys())[:5]}...")
+    
     # Obtener la configuración del curso usando el nombre truncado como clave
     course_config = config_cursos.get(curso, {})
     
+    print(f"[PROCESAR] Configuración encontrada: {'SI' if course_config else 'NO'}")
+    
     # Si no hay configuración, crear una por defecto
     if not course_config:
+        print(f"[PROCESAR] ADVERTENCIA: No se encontró configuración para '{curso}'")
         course_config = {
             'Nombre Curso': curso,
             'Duracion': '00:00:00',
@@ -429,11 +472,16 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, config_cursos):
     
     # Obtener el nombre completo del archivo
     nombre_completo_archivo = course_config.get('Nombre Curso', curso)
+    print(f"[PROCESAR] Nombre completo para archivo: '{nombre_completo_archivo}'")
+    
     # Cargar la hoja del curso
     try:
+        print(f"[PROCESAR] Intentando cargar hoja '{curso}' del maestro...")
         maestro_curso = pd.read_excel(maestro_excel, sheet_name=curso)
+        print(f"[PROCESAR] Hoja cargada exitosamente: {len(maestro_curso)} registros")
     except Exception as e:
-        print(f"⚠️ No se pudo cargar datos de {curso}: {e}")
+        print(f"[PROCESAR] ERROR: No se pudo cargar datos de '{curso}': {e}")
+        print(f"[PROCESAR] Hojas disponibles en maestro: {maestro_excel.sheet_names[:10]}...")
         maestro_curso = None
     
     # Obtener la duración del video desde la configuración del curso
@@ -478,14 +526,15 @@ def procesar_curso(curso, dnis_procesados, maestro_excel, config_cursos):
     return df_curso, nombre_completo_archivo, prefijo_numero, course_config
 
 
-def convertir_excel_a_pdf(excel_data, base_filename, excel_app):
+def convertir_excel_a_pdf(excel_data, base_filename, excel_app, max_intentos=3):
     """
-    Convierte un archivo Excel a PDF usando win32com.
+    Convierte un archivo Excel a PDF usando win32com con reintentos.
     
     Args:
         excel_data (bytes): Datos del archivo Excel
         base_filename (str): Nombre base del archivo (sin extensión)
         excel_app: Instancia de Excel COM (win32com)
+        max_intentos (int): Número máximo de reintentos
     
     Returns:
         bytes: Datos del PDF generado o None si falla
@@ -495,76 +544,111 @@ def convertir_excel_a_pdf(excel_data, base_filename, excel_app):
     wb = None
     pdf_data = None
     
-    try:
-        # Crear archivo temporal para el Excel
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_excel:
-            tmp_excel.write(excel_data)
-            tmp_excel_path = tmp_excel.name
-        
-        # Crear archivo temporal para el PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
-            tmp_pdf_path = tmp_pdf.name
-        
-        # Pequeño delay para asegurar que Excel esté listo
-        time.sleep(0.5)
-        
-        # Abrir el workbook y configurar para exportar a PDF en A4
-        wb = excel_app.Workbooks.Open(os.path.abspath(tmp_excel_path))
-        
-        # Configurar cada hoja para impresión en A4: columnas en 1 página, filas en múltiples
-        for ws in wb.Worksheets:
-            ws.PageSetup.PaperSize = 9  # 9 = A4 (210 x 297 mm)
-            ws.PageSetup.Orientation = 1  # 1 = Portrait (vertical)
-            ws.PageSetup.FitToPagesWide = 1  # Ajustar ANCHO a 1 página (todas las columnas)
-            ws.PageSetup.FitToPagesTall = False  # NO ajustar alto (permitir múltiples páginas)
-            ws.PageSetup.Zoom = False  # Desactivar zoom manual (usar FitToPages)
-            ws.PageSetup.CenterHorizontally = False  # No centrar horizontalmente
-            ws.PageSetup.CenterVertically = False  # No centrar verticalmente
+    for intento in range(1, max_intentos + 1):
+        try:
+            print(f"[PDF] Intento {intento}/{max_intentos} para '{base_filename}'")
             
-            # Configurar márgenes pequeños (en pulgadas)
-            ws.PageSetup.LeftMargin = excel_app.InchesToPoints(0.25)
-            ws.PageSetup.RightMargin = excel_app.InchesToPoints(0.25)
-            ws.PageSetup.TopMargin = excel_app.InchesToPoints(0.25)
-            ws.PageSetup.BottomMargin = excel_app.InchesToPoints(0.25)
-            ws.PageSetup.HeaderMargin = excel_app.InchesToPoints(0.1)
-            ws.PageSetup.FooterMargin = excel_app.InchesToPoints(0.1)
+            # Crear archivo temporal para el Excel
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_excel:
+                tmp_excel.write(excel_data)
+                tmp_excel_path = tmp_excel.name
+            
+            print(f"[PDF] Excel temporal creado: {tmp_excel_path}")
+            
+            # Crear archivo temporal para el PDF
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
+                tmp_pdf_path = tmp_pdf.name
+            
+            print(f"[PDF] PDF temporal preparado: {tmp_pdf_path}")
+            
+            # Delay progresivo según el intento
+            delay = 0.5 * intento
+            time.sleep(delay)
         
-        # Exportar a PDF con la configuración establecida
-        wb.ExportAsFixedFormat(0, os.path.abspath(tmp_pdf_path))  # 0 = xlTypePDF
-        wb.Close(False)
-        wb = None
-        
-        # Pequeño delay después de cerrar
-        time.sleep(0.3)
-        
-        # Leer el PDF generado
-        if os.path.exists(tmp_pdf_path):
-            with open(tmp_pdf_path, 'rb') as pdf_file:
-                pdf_data = pdf_file.read()
-        
-    except Exception as e:
-        print(f"⚠️ Error al convertir {base_filename} a PDF: {e}")
-        # Cerrar workbook si quedó abierto
-        try:
-            if wb is not None:
-                wb.Close(False)
-        except:
-            pass
+            # Abrir el workbook y configurar para exportar a PDF en A4
+            print(f"[PDF] Abriendo workbook...")
+            wb = excel_app.Workbooks.Open(os.path.abspath(tmp_excel_path))
+            print(f"[PDF] Workbook abierto, configurando hojas...")
+            
+            # Configurar cada hoja para impresión en A4: columnas en 1 página, filas en múltiples
+            for ws in wb.Worksheets:
+                ws.PageSetup.PaperSize = 9  # 9 = A4 (210 x 297 mm)
+                ws.PageSetup.Orientation = 1  # 1 = Portrait (vertical)
+                ws.PageSetup.FitToPagesWide = 1  # Ajustar ANCHO a 1 página (todas las columnas)
+                ws.PageSetup.FitToPagesTall = False  # NO ajustar alto (permitir múltiples páginas)
+                ws.PageSetup.Zoom = False  # Desactivar zoom manual (usar FitToPages)
+                ws.PageSetup.CenterHorizontally = False  # No centrar horizontalmente
+                ws.PageSetup.CenterVertically = False  # No centrar verticalmente
+                
+                # Configurar márgenes pequeños (en pulgadas)
+                ws.PageSetup.LeftMargin = excel_app.InchesToPoints(0.25)
+                ws.PageSetup.RightMargin = excel_app.InchesToPoints(0.25)
+                ws.PageSetup.TopMargin = excel_app.InchesToPoints(0.25)
+                ws.PageSetup.BottomMargin = excel_app.InchesToPoints(0.25)
+                ws.PageSetup.HeaderMargin = excel_app.InchesToPoints(0.1)
+                ws.PageSetup.FooterMargin = excel_app.InchesToPoints(0.1)
+            
+            print(f"[PDF] Exportando a PDF...")
+            # Exportar a PDF con la configuración establecida
+            wb.ExportAsFixedFormat(0, os.path.abspath(tmp_pdf_path))  # 0 = xlTypePDF
+            print(f"[PDF] Exportación completada")
+            
+            wb.Close(False)
+            wb = None
+            
+            # Delay más largo después de cerrar para asegurar liberación de archivos
+            time.sleep(1.0)
+            
+            # Verificar que el PDF existe y tiene contenido
+            if os.path.exists(tmp_pdf_path):
+                file_size = os.path.getsize(tmp_pdf_path)
+                print(f"[PDF] Archivo PDF generado: {file_size} bytes")
+                
+                if file_size > 0:
+                    with open(tmp_pdf_path, 'rb') as pdf_file:
+                        pdf_data = pdf_file.read()
+                    print(f"[PDF] ✓ PDF convertido exitosamente ({len(pdf_data)} bytes)")
+                    break  # Salir del bucle de reintentos si fue exitoso
+                else:
+                    print(f"[PDF] ✗ Archivo PDF vacío en intento {intento}")
+            else:
+                print(f"[PDF] ✗ Archivo PDF no encontrado en intento {intento}")
+            
+        except Exception as e:
+            print(f"[PDF] ✗ Error en intento {intento}/{max_intentos}: {type(e).__name__}: {e}")
+            
+            # Cerrar workbook si quedó abierto
+            try:
+                if wb is not None:
+                    wb.Close(False)
+                    wb = None
+            except:
+                pass
+            
+            # Si no es el último intento, esperar antes de reintentar
+            if intento < max_intentos:
+                espera = 2 * intento
+                print(f"[PDF] Esperando {espera}s antes del siguiente intento...")
+                time.sleep(espera)
+            else:
+                print(f"[PDF] ✗ Fallo definitivo después de {max_intentos} intentos")
     
-    finally:
-        # Limpiar archivos temporales
-        try:
-            if tmp_excel_path and os.path.exists(tmp_excel_path):
-                time.sleep(0.2)
-                os.unlink(tmp_excel_path)
-        except:
-            pass
-        try:
-            if tmp_pdf_path and os.path.exists(tmp_pdf_path):
-                time.sleep(0.2)
-                os.unlink(tmp_pdf_path)
-        except:
-            pass
+        finally:
+            # Limpiar archivos temporales con reintentos
+            for archivo, nombre in [(tmp_excel_path, 'Excel'), (tmp_pdf_path, 'PDF')]:
+                if archivo and os.path.exists(archivo):
+                    for i in range(3):
+                        try:
+                            time.sleep(0.5)
+                            os.unlink(archivo)
+                            print(f"[PDF] Archivo temporal {nombre} eliminado")
+                            break
+                        except Exception as e:
+                            if i == 2:
+                                print(f"[PDF] No se pudo eliminar archivo temporal {nombre}: {e}")
+    
+    if pdf_data is None:
+        print(f"[PDF] ✗ NO se pudo generar PDF para '{base_filename}' después de todos los intentos")
     
     return pdf_data
 
@@ -626,34 +710,62 @@ def generar_zip_formatos(dnis_procesados, selected_courses, maestro_excel,
                     curso, dnis_procesados, maestro_excel, course_configs
                 )
                 
-                # Generar Excel
-                excel_data = create_formatted_excel(df_curso, course_config)
+                # Sanitizar el nombre del curso ANTES de generar el Excel
+                nombre_sanitizado = sanitizar_nombre_archivo(nombre_completo_archivo)
+                
+                # Actualizar la configuración con el nombre sanitizado
+                course_config_sanitizado = course_config.copy()
+                course_config_sanitizado['Nombre Curso'] = nombre_sanitizado
+                
+                # Logging detallado
+                print(f"[DEBUG] Procesando curso: '{curso}'")
+                print(f"[DEBUG] Nombre original: '{nombre_completo_archivo}'")
+                print(f"[DEBUG] Nombre sanitizado: '{nombre_sanitizado}'")
+                print(f"[DEBUG] Config encontrada: {course_config.get('Nombre Curso', 'NO ENCONTRADO')}")
+                
+                # Generar Excel con el nombre sanitizado
+                excel_data = create_formatted_excel(df_curso, course_config_sanitizado)
                 
                 if excel_data:
                     # Nombre del archivo
                     unidad = df_curso['Unidad (Cliente)'].iloc[0] if not df_curso.empty else 'Sin_Unidad'
                     
-                    # Usar el nombre completo directamente (ya no agregamos prefijo, porque puede duplicarse)
-                    base_filename = f"{nombre_completo_archivo} - {unidad}"
+                    # Usar el nombre completo sanitizado
+                    base_filename = sanitizar_nombre_archivo(f"{nombre_completo_archivo} - {unidad}")
+                    
+                    print(f"[DEBUG] Base filename final: '{base_filename}'")
                     
                     # Agregar Excel al ZIP si se solicitó
                     if generar_excel:
                         file_name_excel = f"{base_filename}.xlsx"
+                        print(f"[DEBUG] Agregando Excel al ZIP: '{file_name_excel}'")
                         zip_file.writestr(file_name_excel, excel_data)
                     
                     # Generar y agregar PDF al ZIP si se solicitó
                     if generar_pdf and excel_app is not None:
-                        pdf_data = convertir_excel_a_pdf(excel_data, base_filename, excel_app)
+                        print(f"\n{'='*70}")
+                        print(f"[DEBUG] === GENERANDO PDF {idx}/{len(selected_courses)} ===")
+                        print(f"[DEBUG] Archivo: '{base_filename}'")
+                        print(f"{'='*70}")
                         
-                        if pdf_data:
+                        pdf_data = convertir_excel_a_pdf(excel_data, base_filename, excel_app, max_intentos=3)
+                        
+                        if pdf_data and len(pdf_data) > 0:
                             file_name_pdf = f"{base_filename}.pdf"
+                            print(f"[DEBUG] ✓ PDF generado exitosamente: '{file_name_pdf}' ({len(pdf_data)} bytes)")
                             zip_file.writestr(file_name_pdf, pdf_data)
                         else:
+                            print(f"[DEBUG] ✗ ERROR: No se pudo generar PDF para '{base_filename}'")
                             warnings.append(f"⚠️ No se generó el PDF para {base_filename}")
                             # Si solo se pidió PDF y falló, agregar Excel como respaldo
                             if not generar_excel:
+                                print(f"[DEBUG] Agregando Excel como respaldo...")
                                 file_name_excel = f"{base_filename}.xlsx"
                                 zip_file.writestr(file_name_excel, excel_data)
+                        
+                        print(f"{'='*70}\n")
+                else:
+                    print(f"[DEBUG] ERROR: No se generaron datos de Excel para '{curso}'")
         
         zip_buffer.seek(0)
     
