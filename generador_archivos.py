@@ -146,6 +146,17 @@ def get_nombre_completo_curso(nombre_truncado, courses_dict):
         'armas: conocimiento y manipula': 'Armas: conocimiento y manipulación',
         'armas_ conocimiento y manipu': 'Armas: conocimiento y manipulación',
         'armas_ conocimiento y manipul': 'Armas: conocimiento y manipulación',
+        # Cursos de Antapaccay
+        'falsificación de documentació': 'Falsificacion de documentos',
+        'falsificacion de documentació': 'Falsificacion de documentos',
+        '1_falsificación de documentació': 'Falsificacion de documentos',
+        '1_falsificacion de documentació': 'Falsificacion de documentos',
+        'ddhh y principios voluntarios': 'DDHH y Principios voluntarios - Integridad y ética en la seguridad privada',
+        '2_ddhh y principios voluntarios': 'DDHH y Principios voluntarios - Integridad y ética en la seguridad privada',
+        'uso de la fuerza - antapaccay': 'Uso de la Fuerza',
+        'uso de la fuerza': 'Uso de la Fuerza',
+        '3_uso de la fuerza - antapaccay': 'Uso de la Fuerza',
+        '3_uso de la fuerza': 'Uso de la Fuerza',
     }
     
     print(f"\n[MATCH] === Iniciando matching para: '{nombre_truncado}' ===")

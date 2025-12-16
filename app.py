@@ -548,6 +548,11 @@ if st.session_state.cursos_disponibles:
             'Fundamentos del Sistema Integrado de Gestión',
             'Prevención de riesgos de soborno',
             'Prevención de delitos relacionados a ciberdelincuencia'
+        ],
+        'ANTAPACCAY': [
+            'Uso de la Fuerza',
+            'DDHH y Principios voluntarios - Integridad y ética en la seguridad privada',
+            'Falsificacion de documentos'
         ]
     }
     
@@ -575,7 +580,7 @@ if st.session_state.cursos_disponibles:
     selected_courses = []
     
     # Crear tabs para cada categoría
-    tabs = st.tabs(['🛡️ SSOMA', '🔧 TÉCNICO', '📊 ESTRATÉGICO', '📦 OTROS'])
+    tabs = st.tabs(['🛡️ SSOMA', '🔧 TÉCNICO', '📊 ESTRATÉGICO', '📦 OTROS', '⛰️ ANTAPACCAY'])
     
     with tabs[0]:  # SSOMA
         if cursos_por_categoria['SSOMA']:
@@ -628,6 +633,19 @@ if st.session_state.cursos_disponibles:
             st.info(f"📌 {len(cursos_otros)} curso(s) adicional(es) seleccionado(s)")
         else:
             st.info("No hay otros cursos disponibles")
+    
+    with tabs[4]:  # ANTAPACCAY
+        if cursos_por_categoria['ANTAPACCAY']:
+            st.markdown("**Cursos Antapaccay:**")
+            cursos_antapaccay = st.multiselect(
+                "Selecciona cursos de Antapaccay:",
+                cursos_por_categoria['ANTAPACCAY'],
+                key="antapaccay_courses"
+            )
+            selected_courses.extend(cursos_antapaccay)
+            st.info(f"📌 {len(cursos_antapaccay)} curso(s) de Antapaccay seleccionado(s)")
+        else:
+            st.warning("No hay cursos de Antapaccay disponibles")
     
     # Resumen de selección total
     if selected_courses:
@@ -834,6 +852,7 @@ if st.session_state.cursos_disponibles:
                     cursos_tecnico_sel = [c for c in selected_courses if c in cursos_por_categoria['TÉCNICO']]
                     cursos_estrategico_sel = [c for c in selected_courses if c in cursos_por_categoria['ESTRATÉGICO']]
                     cursos_otros_sel = [c for c in selected_courses if c in cursos_por_categoria['OTROS']]
+                    cursos_antapaccay_sel = [c for c in selected_courses if c in cursos_por_categoria['ANTAPACCAY']]
                     
                     categorias_con_cursos = []
                     if cursos_ssoma_sel:
@@ -844,6 +863,8 @@ if st.session_state.cursos_disponibles:
                         categorias_con_cursos.append(('ESTRATÉGICO', '📊', cursos_estrategico_sel))
                     if cursos_otros_sel:
                         categorias_con_cursos.append(('OTROS', '📦', cursos_otros_sel))
+                    if cursos_antapaccay_sel:
+                        categorias_con_cursos.append(('ANTAPACCAY', '⛰️', cursos_antapaccay_sel))
                     
                     # Generar ZIPs separados
                     for categoria_nombre, icono, cursos_categoria in categorias_con_cursos:
