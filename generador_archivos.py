@@ -16,6 +16,37 @@ import difflib
 import re
 
 
+def limpiar_procesos_excel_zombies():
+    """
+    Intenta cerrar procesos de Excel zombies que puedan estar bloqueando COM.
+    Esto ayuda a prevenir errores de inicialización.
+    """
+    try:
+        import subprocess
+        # Listar procesos de Excel
+        result = subprocess.run(
+            ['tasklist', '/FI', 'IMAGENAME eq EXCEL.EXE'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if 'EXCEL.EXE' in result.stdout:
+            lineas = result.stdout.strip().split('\n')
+            # Contar procesos (excluyendo encabezados)
+            procesos = [l for l in lineas if 'EXCEL.EXE' in l]
+            if procesos:
+                print(f"[EXCEL] ⚠️ Detectados {len(procesos)} proceso(s) de Excel ejecutándose")
+                print("[EXCEL] Recomendación: Cierra manualmente Excel antes de generar PDFs")
+                return False
+        else:
+            print("[EXCEL] ✓ No hay procesos de Excel ejecutándose")
+            return True
+    except Exception as e:
+        print(f"[EXCEL] No se pudo verificar procesos: {e}")
+        return True
+
+
 def quitar_acentos(texto):
     """
     Quita acentos y caracteres especiales de un texto.
@@ -149,6 +180,10 @@ def get_nombre_completo_curso(nombre_truncado, courses_dict):
         # Cursos de Antapaccay
         'falsificación de documentació': 'Falsificacion de documentos',
         'falsificacion de documentació': 'Falsificacion de documentos',
+        'falsificación de documentaci': 'Falsificacion de documentos',
+        'falsificacion de documentaci': 'Falsificacion de documentos',
+        '28_falsificación de documentaci': 'Falsificacion de documentos',
+        '28_falsificacion de documentaci': 'Falsificacion de documentos',
         '1_falsificación de documentació': 'Falsificacion de documentos',
         '1_falsificacion de documentació': 'Falsificacion de documentos',
         'ddhh y principios voluntarios': 'DDHH y Principios voluntarios - Integridad y ética en la seguridad privada',
@@ -693,17 +728,41 @@ def generar_zip_formatos(dnis_procesados, selected_courses, maestro_excel,
             import win32com.client
             import pythoncom
             
+            # Verificar procesos de Excel antes de inicializar
+            limpiar_procesos_excel_zombies()
+            
             pythoncom.CoInitialize()
-            excel_app = win32com.client.Dispatch("Excel.Application")
-            excel_app.Visible = False
-            excel_app.DisplayAlerts = False
-            excel_app.ScreenUpdating = False
+            
+            # Intentar obtener instancia existente primero, sino crear nueva
+            try:
+                excel_app = win32com.client.GetActiveObject("Excel.Application")
+                print("[EXCEL] Usando instancia existente de Excel")
+            except:
+                excel_app = win32com.client.Dispatch("Excel.Application")
+                print("[EXCEL] Creando nueva instancia de Excel")
+            
+            # Configurar Excel - manejar errores individuales
+            try:
+                excel_app.Visible = False
+            except:
+                print("[EXCEL] No se pudo ocultar Excel, continuando...")
+            
+            try:
+                excel_app.DisplayAlerts = False
+            except:
+                print("[EXCEL] No se pudo desactivar alertas, continuando...")
+            
+            try:
+                excel_app.ScreenUpdating = False
+            except:
+                print("[EXCEL] No se pudo desactivar actualización de pantalla, continuando...")
+                
         except ImportError:
             warnings.append("⚠️ pywin32 no instalado. Los PDFs se generarán como Excel.")
             generar_pdf = False
             generar_excel = True
         except Exception as e:
-            warnings.append(f"⚠️ No se pudo inicializar Excel: {e}")
+            warnings.append(f"⚠️ No se pudo inicializar Excel: {e}. Cierra todas las ventanas de Excel e intenta nuevamente.")
             generar_pdf = False
             generar_excel = True
     
@@ -781,15 +840,36 @@ def generar_zip_formatos(dnis_procesados, selected_courses, maestro_excel,
         zip_buffer.seek(0)
     
     finally:
-        # Cerrar Excel y liberar recursos COM
+        # Cerrar Excel y liberar recursos COM de forma robusta
         if excel_app is not None:
             try:
-                excel_app.Quit()
+                print("[EXCEL] Cerrando Excel...")
+                # Cerrar todos los workbooks abiertos
+                try:
+                    for wb in excel_app.Workbooks:
+                        try:
+                            wb.Close(False)
+                        except:
+                            pass
+                except:
+                    pass
+                
+                # Cerrar Excel
+                try:
+                    excel_app.Quit()
+                except:
+                    print("[EXCEL] Error al cerrar Excel (puede estar ya cerrado)")
+                
+                # Liberar referencia COM
                 excel_app = None
-                time.sleep(1)  # Dar tiempo para que Excel se cierre
-            except:
-                pass
+                
+                # Dar tiempo para que Excel se cierre completamente
+                time.sleep(1.5)
+                print("[EXCEL] Excel cerrado correctamente")
+            except Exception as e:
+                print(f"[EXCEL] Error al cerrar: {e}")
             
+            # Liberar COM
             try:
                 import pythoncom
                 pythoncom.CoUninitialize()

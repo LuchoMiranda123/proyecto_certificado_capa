@@ -121,15 +121,18 @@ with col1:
             with st.spinner("Cargando archivo..."):
                 try:
                     # Leer Excel indicando que los encabezados están en la fila 4 (índice 3)
-                    # Primero leer para detectar columnas de DNI
-                    df = pd.read_excel(personal_file, header=3)
+                    # Detectar columnas de DNI para convertirlas a string desde la lectura
+                    df = pd.read_excel(personal_file, header=3, dtype=str)
                     
-                    # Detectar columnas de DNI y convertir a string con ceros a la izquierda
+                    # Detectar columnas de DNI y asegurar formato con ceros a la izquierda
                     possible_dni_cols = ['DOCUMENTO', 'DNI', 'Documento', 'dni', 'documento', 'DOC']
                     for col in df.columns:
                         if col in possible_dni_cols or 'DNI' in str(col).upper() or 'DOCUMENTO' in str(col).upper():
-                            # Convertir a string preservando ceros a la izquierda
-                            df[col] = df[col].apply(lambda x: str(int(x)).zfill(8) if pd.notna(x) and str(x).replace('.','').isdigit() else str(x) if pd.notna(x) else '')
+                            # Limpiar espacios y convertir a formato de 8 dígitos si es numérico
+                            df[col] = df[col].apply(
+                                lambda x: str(x).strip().zfill(8) if pd.notna(x) and str(x).strip().replace('.','').replace(',','').isdigit() 
+                                else str(x).strip() if pd.notna(x) else ''
+                            )
 
                     # Limpiar filas vacías
                     df = df.dropna(how="all")
@@ -354,15 +357,32 @@ if procesar_btn:
             # Procesar cada DNI
             processed_data = []
             
+            # Crear una copia del df de personal con DNI normalizado para búsqueda
+            personal_df_search = st.session_state.personal_df.copy()
+            personal_df_search['DNI_NORMALIZADO'] = personal_df_search[dni_col_personal].astype(str).str.strip()
+            
             for dni in dnis_list:
-                # Asegurar formato de DNI con ceros a la izquierda
-                dni_formatted = str(dni).zfill(8) if str(dni).isdigit() else str(dni)
+                # Limpiar y normalizar el DNI de entrada
+                dni_limpio = str(dni).strip()
                 
-                # Buscar en Personal Asignado (comparar ambos formatos por si acaso)
-                person = st.session_state.personal_df[
-                    (st.session_state.personal_df[dni_col_personal].astype(str) == dni_formatted) |
-                    (st.session_state.personal_df[dni_col_personal].astype(str) == str(int(dni_formatted)))
+                # Asegurar formato de DNI con ceros a la izquierda (8 dígitos)
+                if dni_limpio.isdigit():
+                    dni_formatted = dni_limpio.zfill(8)
+                else:
+                    dni_formatted = dni_limpio
+                
+                # Buscar en Personal Asignado
+                # Comparar con el DNI normalizado (exacto con ceros)
+                person = personal_df_search[
+                    personal_df_search['DNI_NORMALIZADO'] == dni_formatted
                 ]
+                
+                # Si no se encuentra, intentar sin los ceros a la izquierda
+                if person.empty and dni_formatted.isdigit():
+                    dni_sin_ceros = str(int(dni_formatted))
+                    person = personal_df_search[
+                        personal_df_search['DNI_NORMALIZADO'] == dni_sin_ceros
+                    ]
                 
                 if not person.empty:
                     nombre = person.iloc[0][nombre_col]
@@ -472,7 +492,7 @@ if st.session_state.dnis_procesados is not None:
             except Exception as e:
                 st.error(f"❌ Error al aplicar cambios: {e}")
     
-    st.info("💡 También puedes editar directamente en la tabla. Los cambios se guardan automáticamente.")
+    st.info("💡 También puedes editar directamente en la tabla. Los cambios se aplican automáticamente.")
     
     # Usar data_editor para editar directamente (tabla más pequeña sin scroll)
     edited_df = st.data_editor(
@@ -489,10 +509,9 @@ if st.session_state.dnis_procesados is not None:
         key="data_editor"
     )
     
-    # Actualizar el session state con los datos editados
-    if not edited_df.equals(st.session_state.dnis_procesados):
-        st.session_state.dnis_procesados = edited_df
-        st.success("✅ Cambios guardados automáticamente")
+    # Actualizar el session state con los datos editados siempre
+    # Esto evita que se pierdan cambios al recargar
+    st.session_state.dnis_procesados = edited_df
 
 st.markdown("---")
 
@@ -504,12 +523,11 @@ if not st.session_state.paso_completado['paso2_dnis']:
     st.warning("⚠️ Completa el Paso 2 antes de continuar")
     st.stop()
 
-# Verificar que no haya datos faltantes
+# Mostrar advertencia si hay datos faltantes (pero permitir continuar)
 if st.session_state.dnis_procesados is not None:
     faltantes_count = st.session_state.dnis_procesados['Nombre'].isna().sum()
     if faltantes_count > 0:
-        st.error(f"❌ Completa los {faltantes_count} datos faltantes en el Paso 2 antes de continuar")
-        st.stop()
+        st.warning(f"⚠️ Hay {faltantes_count} DNI(s) sin información. Solo se generarán certificados para los que tengan nombre y unidad completos.")
 
 # Indicador de estado del paso 3
 if st.session_state.paso_completado['paso3_cursos']:
@@ -552,7 +570,10 @@ if st.session_state.cursos_disponibles:
         'ANTAPACCAY': [
             'Uso de la Fuerza',
             'DDHH y Principios voluntarios - Integridad y ética en la seguridad privada',
-            'Falsificacion de documentos'
+            'Falsificacion de documentos',
+            'Falsificación de documentos',
+            'FALSIFICACIÓN DE DOCUMENTACIÓN',
+            '28_FALSIFICACIÓN DE DOCUMENTACI'
         ]
     }
     
@@ -798,28 +819,38 @@ if st.session_state.cursos_disponibles:
         if generar_btn:
             if st.session_state.dnis_procesados is None:
                 st.error("❌ Primero procesa los DNIs")
-            elif st.session_state.dnis_procesados['Nombre'].isna().any():
-                st.error("❌ Completa los datos faltantes antes de generar")
             else:
-                if descarga_option == "Todo en un solo ZIP":
-                    # Generación tradicional: todo en un solo ZIP
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    def actualizar_progreso(idx, total, curso):
-                        progress = idx / total
-                        progress_bar.progress(progress)
-                        status_text.text(f"Generando {idx}/{total}: {curso}")
-                    
-                    with st.spinner("Generando formatos..."):
-                        zip_buffer, zip_filename, warnings = generar_zip_formatos(
-                            dnis_procesados=st.session_state.dnis_procesados,
-                            selected_courses=selected_courses,
-                            maestro_excel=st.session_state.maestro_excel,
-                            course_configs=course_configs,
-                            output_format=output_format,
-                            progress_callback=actualizar_progreso
-                        )
+                # Usar todos los DNIs procesados (incluso los que no tienen nombre/unidad)
+                dnis_completos = st.session_state.dnis_procesados.copy()
+                
+                # Mostrar información sobre DNIs sin datos completos
+                dnis_sin_nombre = st.session_state.dnis_procesados['Nombre'].isna().sum()
+                dnis_sin_unidad = st.session_state.dnis_procesados['Unidad'].isna().sum()
+                
+                if dnis_sin_nombre > 0 or dnis_sin_unidad > 0:
+                    st.info(f"ℹ️ Se generarán certificados para todos los {len(dnis_completos)} DNI(s), incluyendo {dnis_sin_nombre} sin nombre y {dnis_sin_unidad} sin unidad.")
+                
+                # Continuar con todos los DNIs
+                if len(dnis_completos) > 0:
+                    if descarga_option == "Todo en un solo ZIP":
+                        # Generación tradicional: todo en un solo ZIP
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        def actualizar_progreso(idx, total, curso):
+                            progress = idx / total
+                            progress_bar.progress(progress)
+                            status_text.text(f"Generando {idx}/{total}: {curso}")
+                        
+                        with st.spinner("Generando formatos..."):
+                            zip_buffer, zip_filename, warnings = generar_zip_formatos(
+                                dnis_procesados=dnis_completos,
+                                selected_courses=selected_courses,
+                                maestro_excel=st.session_state.maestro_excel,
+                                course_configs=course_configs,
+                                output_format=output_format,
+                                progress_callback=actualizar_progreso
+                            )
                         
                         for warning in warnings:
                             st.warning(warning)
@@ -843,84 +874,84 @@ if st.session_state.cursos_disponibles:
                             mime="application/zip",
                             use_container_width=True
                         )
-                
-                else:  # ZIP separado por categoría
-                    st.markdown("### 📦 Descargas por Categoría")
                     
-                    # Separar cursos por categoría
-                    cursos_ssoma_sel = [c for c in selected_courses if c in cursos_por_categoria['SSOMA']]
-                    cursos_tecnico_sel = [c for c in selected_courses if c in cursos_por_categoria['TÉCNICO']]
-                    cursos_estrategico_sel = [c for c in selected_courses if c in cursos_por_categoria['ESTRATÉGICO']]
-                    cursos_otros_sel = [c for c in selected_courses if c in cursos_por_categoria['OTROS']]
-                    cursos_antapaccay_sel = [c for c in selected_courses if c in cursos_por_categoria['ANTAPACCAY']]
-                    
-                    categorias_con_cursos = []
-                    if cursos_ssoma_sel:
-                        categorias_con_cursos.append(('SSOMA', '🛡️', cursos_ssoma_sel))
-                    if cursos_tecnico_sel:
-                        categorias_con_cursos.append(('TÉCNICO', '🔧', cursos_tecnico_sel))
-                    if cursos_estrategico_sel:
-                        categorias_con_cursos.append(('ESTRATÉGICO', '📊', cursos_estrategico_sel))
-                    if cursos_otros_sel:
-                        categorias_con_cursos.append(('OTROS', '📦', cursos_otros_sel))
-                    if cursos_antapaccay_sel:
-                        categorias_con_cursos.append(('ANTAPACCAY', '⛰️', cursos_antapaccay_sel))
-                    
-                    # Generar ZIPs separados
-                    for categoria_nombre, icono, cursos_categoria in categorias_con_cursos:
-                        with st.expander(f"{icono} {categoria_nombre} ({len(cursos_categoria)} cursos)", expanded=True):
-                            st.markdown(f"**Cursos incluidos:**")
-                            for curso in cursos_categoria:
-                                st.markdown(f"- {curso}")
-                            
-                            # Generar ZIP para esta categoría
-                            progress_bar = st.progress(0)
-                            status_text = st.empty()
-                            
-                            def actualizar_progreso_cat(idx, total, curso):
-                                progress = idx / total
-                                progress_bar.progress(progress)
-                                status_text.text(f"[{categoria_nombre}] Generando {idx}/{total}: {curso}")
-                            
-                            # Filtrar course_configs para esta categoría
-                            course_configs_cat = {k: v for k, v in course_configs.items() if k in cursos_categoria}
-                            
-                            with st.spinner(f"Generando formatos de {categoria_nombre}..."):
-                                zip_buffer, zip_filename, warnings = generar_zip_formatos(
-                                    dnis_procesados=st.session_state.dnis_procesados,
-                                    selected_courses=cursos_categoria,
-                                    maestro_excel=st.session_state.maestro_excel,
-                                    course_configs=course_configs_cat,
-                                    output_format=output_format,
-                                    progress_callback=actualizar_progreso_cat
-                                )
+                    else:  # ZIP separado por categoría
+                        st.markdown("### 📦 Descargas por Categoría")
+                        
+                        # Separar cursos por categoría
+                        cursos_ssoma_sel = [c for c in selected_courses if c in cursos_por_categoria['SSOMA']]
+                        cursos_tecnico_sel = [c for c in selected_courses if c in cursos_por_categoria['TÉCNICO']]
+                        cursos_estrategico_sel = [c for c in selected_courses if c in cursos_por_categoria['ESTRATÉGICO']]
+                        cursos_otros_sel = [c for c in selected_courses if c in cursos_por_categoria['OTROS']]
+                        cursos_antapaccay_sel = [c for c in selected_courses if c in cursos_por_categoria['ANTAPACCAY']]
+                        
+                        categorias_con_cursos = []
+                        if cursos_ssoma_sel:
+                            categorias_con_cursos.append(('SSOMA', '🛡️', cursos_ssoma_sel))
+                        if cursos_tecnico_sel:
+                            categorias_con_cursos.append(('TÉCNICO', '🔧', cursos_tecnico_sel))
+                        if cursos_estrategico_sel:
+                            categorias_con_cursos.append(('ESTRATÉGICO', '📊', cursos_estrategico_sel))
+                        if cursos_otros_sel:
+                            categorias_con_cursos.append(('OTROS', '📦', cursos_otros_sel))
+                        if cursos_antapaccay_sel:
+                            categorias_con_cursos.append(('ANTAPACCAY', '⛰️', cursos_antapaccay_sel))
+                        
+                        # Generar ZIPs separados
+                        for categoria_nombre, icono, cursos_categoria in categorias_con_cursos:
+                            with st.expander(f"{icono} {categoria_nombre} ({len(cursos_categoria)} cursos)", expanded=True):
+                                st.markdown(f"**Cursos incluidos:**")
+                                for curso in cursos_categoria:
+                                    st.markdown(f"- {curso}")
                                 
-                                for warning in warnings:
-                                    st.warning(warning)
+                                # Generar ZIP para esta categoría
+                                progress_bar = st.progress(0)
+                                status_text = st.empty()
                                 
-                                progress_bar.empty()
-                                status_text.empty()
+                                def actualizar_progreso_cat(idx, total, curso):
+                                    progress = idx / total
+                                    progress_bar.progress(progress)
+                                    status_text.text(f"[{categoria_nombre}] Generando {idx}/{total}: {curso}")
                                 
-                                st.success(f"✅ {categoria_nombre} generado correctamente")
+                                # Filtrar course_configs para esta categoría
+                                course_configs_cat = {k: v for k, v in course_configs.items() if k in cursos_categoria}
                                 
-                                # Ajustar nombre del archivo ZIP
-                                zip_filename_cat = zip_filename.replace('.zip', f'_{categoria_nombre}.zip')
-                                
-                                if output_format == "Excel (.xlsx)":
-                                    label = f"📥 Descargar {categoria_nombre} - Excel"
-                                elif output_format == "PDF":
-                                    label = f"📥 Descargar {categoria_nombre} - PDF"
-                                else:
-                                    label = f"📥 Descargar {categoria_nombre} - Excel + PDF"
-                                
-                                st.download_button(
-                                    label=label,
-                                    data=zip_buffer.getvalue(),
-                                    file_name=zip_filename_cat,
-                                    mime="application/zip",
-                                    use_container_width=True,
-                                    key=f"download_{categoria_nombre}"
-                                )
+                                with st.spinner(f"Generando formatos de {categoria_nombre}..."):
+                                    zip_buffer, zip_filename, warnings = generar_zip_formatos(
+                                        dnis_procesados=dnis_completos,
+                                        selected_courses=cursos_categoria,
+                                        maestro_excel=st.session_state.maestro_excel,
+                                        course_configs=course_configs_cat,
+                                        output_format=output_format,
+                                        progress_callback=actualizar_progreso_cat
+                                    )
+                                    
+                                    for warning in warnings:
+                                        st.warning(warning)
+                                    
+                                    progress_bar.empty()
+                                    status_text.empty()
+                                    
+                                    st.success(f"✅ {categoria_nombre} generado correctamente")
+                                    
+                                    # Ajustar nombre del archivo ZIP
+                                    zip_filename_cat = zip_filename.replace('.zip', f'_{categoria_nombre}.zip')
+                                    
+                                    if output_format == "Excel (.xlsx)":
+                                        label = f"📥 Descargar {categoria_nombre} - Excel"
+                                    elif output_format == "PDF":
+                                        label = f"📥 Descargar {categoria_nombre} - PDF"
+                                    else:
+                                        label = f"📥 Descargar {categoria_nombre} - Excel + PDF"
+                                    
+                                    st.download_button(
+                                        label=label,
+                                        data=zip_buffer.getvalue(),
+                                        file_name=zip_filename_cat,
+                                        mime="application/zip",
+                                        use_container_width=True,
+                                        key=f"download_{categoria_nombre}"
+                                    )
     else:
         st.info("👆 Selecciona al menos un curso para continuar")
 
